@@ -4,11 +4,27 @@ server:
 spring:
   application:
     name: config-server
+  profiles:
+    active: git
   cloud:
     config:
       server:
         git:
-          uri: https://github.com/KirillKrakov/bank-ticket-config #!!!
-          default-label: main
+          uri: https://github.com/KirillKrakov/bank-ticket-system-lab-2
+          default-label: master
+          search-paths: bank-ticket-config
           clone-on-start: true
           force-pull: true
+          timeout: 10
+
+eureka:
+  client:
+    enabled: true
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
+    prefer-ip-address: false
+    instance-id: ${spring.cloud.client.hostname}:${spring.application.name}:${server.port}

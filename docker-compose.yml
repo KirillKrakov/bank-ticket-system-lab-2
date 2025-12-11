@@ -1,32 +1,24 @@
 version: '3.8'
 
 services:
-  # Инфраструктурные сервисы
-  postgres-discovery:
+  # Базы данных
+  postgres-infra:
     image: postgres:17
     environment:
-      POSTGRES_DB: eureka
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5431:5432"
-    volumes:
-      - pgdata-discovery:/var/lib/postgresql/data
-    networks:
-      - bank-network
-
-  postgres-config:
-    image: postgres:17
-    environment:
-      POSTGRES_DB: config
+      POSTGRES_DB: infra
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     volumes:
-      - pgdata-config:/var/lib/postgresql/data
+      - pgdata-infra:/var/lib/postgresql/data
     networks:
       - bank-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   service-discovery:
     build:
@@ -34,12 +26,17 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8761:8761"
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
     depends_on:
-      - postgres-discovery
+      postgres-infra:
+        condition: service_healthy
     networks:
       - bank-network
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-infra:5432/infra
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      EUREKA_INSTANCE_HOSTNAME: service-discovery  # Важно!
+    hostname: service-discovery  # Важно!
 
   config-server:
     build:
@@ -47,12 +44,14 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8888:8888"
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
     depends_on:
-      - postgres-config
+      - service-discovery
     networks:
       - bank-network
+    environment:
+      EUREKA_INSTANCE_HOSTNAME: config-server
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka
+    hostname: config-server
 
   gateway:
     build:
@@ -60,18 +59,20 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
     depends_on:
       - service-discovery
       - config-server
     networks:
       - bank-network
+    environment:
+      EUREKA_INSTANCE_HOSTNAME: gateway
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka
+      SPRING_CLOUD_GATEWAY_DISCOVERY_LOCATOR_ENABLED: "true"
+    hostname: gateway
 
 networks:
   bank-network:
     driver: bridge
 
 volumes:
-  pgdata-discovery:
-  pgdata-config:
+  pgdata-infra:
