@@ -55,9 +55,54 @@ services:
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka
 
+  postgres-user:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: userdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata-user:/var/lib/postgresql/data
+      # Можем добавить init скрипт для гарантии создания БД
+      - ./user-service/src/main/resources/init-user-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - bank-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      USER_DB_JDBC_URL: jdbc:postgresql://postgres-user:5432/userdb
+      USER_DB_URL: r2dbc:postgresql://postgres-user:5432/userdb
+      USER_DB_USER: postgres
+      USER_DB_PASS: postgres
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+    depends_on:
+      postgres-user:
+        condition: service_healthy  # Ждём пока БД станет здоровой
+      config-server:
+        condition: service_started
+      service-discovery:
+        condition: service_started
+    networks:
+      - bank-network
+
 networks:
   bank-network:
     driver: bridge
 
 volumes:
   pgdata-infra:
+  pgdata-user:
