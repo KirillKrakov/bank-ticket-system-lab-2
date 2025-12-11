@@ -1,0 +1,26 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: user-service
+  r2dbc:
+    url: ${USER_DB_URL:r2dbc:postgresql://localhost:5433/userdb}
+    username: ${USER_DB_USER:postgres}
+    password: ${USER_DB_PASS:postgres}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+  instance:
+    prefer-ip-address: true
+    hostname: ${HOSTNAME:localhost}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      productService:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 5s

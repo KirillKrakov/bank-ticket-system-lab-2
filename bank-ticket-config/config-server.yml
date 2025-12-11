@@ -1,0 +1,13 @@
+server:
+  port: 8888
+
+spring:
+  cloud:
+    config:
+      server:
+        git:
+          uri: ${CONFIG_GIT_URI:https://github.com/KirillKrakov/bank-ticket-config}
+          default-label: ${CONFIG_GIT_BRANCH:main}
+          clone-on-start: true
+          force-pull: true
+          timeout: 10
