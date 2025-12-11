@@ -1,0 +1,9 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: assignment-service
+  cloud:
+    discovery:
+      enabled: true

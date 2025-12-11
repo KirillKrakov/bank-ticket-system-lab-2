@@ -5,14 +5,9 @@ spring:
   application:
     name: config-server
   profiles:
-    active: git
+    active: native
   cloud:
     config:
       server:
-        git:
-          uri: https://github.com/KirillKrakov/bank-ticket-system-lab-2
-          default-label: master
-          search-paths: bank-ticket-config
-          clone-on-start: true
-          force-pull: true
-          timeout: 10
+        native:
+          search-locations: classpath:/config
