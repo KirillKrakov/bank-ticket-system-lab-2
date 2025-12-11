@@ -1,59 +1,95 @@
 package com.example.userservice.controller;
 
+import com.example.userservice.dto.UserDto;
+import com.example.userservice.dto.UserRequest;
+import com.example.userservice.service.UserService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/users")
 public class UserController {
 
-    @GetMapping
-    public ResponseEntity<?> listUsers() {
-        return ResponseEntity.ok(Map.of(
-                "message", "Hi! I'm User Service!",
-                "endpoint", "GET /api/v1/users",
-                "service", "user-service"
-        ));
-    }
+    private final UserService userService;
+    private static final int MAX_PAGE_SIZE = 50;
 
-    @GetMapping("/{id}")
-    public ResponseEntity<?> getUser(@PathVariable String id) {
-        return ResponseEntity.ok(Map.of(
-                "message", "Hi! I'm User Service!",
-                "endpoint", "GET /api/v1/users/" + id,
-                "service", "user-service",
-                "userId", id
-        ));
+    public UserController(UserService userService) {
+        this.userService = userService;
     }
 
     @PostMapping
-    public ResponseEntity<?> createUser() {
-        return ResponseEntity.ok(Map.of(
-                "message", "Hi! I'm User Service!",
-                "endpoint", "POST /api/v1/users",
-                "service", "user-service"
-        ));
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<UserDto> createUser(@Valid @RequestBody UserRequest request) {
+        return userService.create(request);
+    }
+
+    @GetMapping
+    public Flux<UserDto> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        if (size > MAX_PAGE_SIZE) {
+            return Flux.error(new IllegalArgumentException(
+                    String.format("Page size cannot be greater than %d", MAX_PAGE_SIZE)));
+        }
+        return userService.findAll(page, size);
+    }
+
+    @GetMapping("/{id}")
+    public Mono<ResponseEntity<UserDto>> getUserById(@PathVariable UUID id) {
+        return userService.findById(id)
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateUser(@PathVariable String id) {
-        return ResponseEntity.ok(Map.of(
-                "message", "Hi! I'm User Service!",
-                "endpoint", "PUT /api/v1/users/" + id,
-                "service", "user-service",
-                "userId", id
-        ));
+    public Mono<ResponseEntity<UserDto>> updateUser(
+            @PathVariable UUID id,
+            @RequestParam UUID actorId,
+            @Valid @RequestBody UserRequest request) {
+        return userService.update(id, actorId, request)
+                .map(ResponseEntity::ok)
+                .onErrorResume(e -> {
+                    if (e instanceof com.example.userservice.exception.ForbiddenException) {
+                        return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN).build());
+                    }
+                    return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
+                });
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteUser(@PathVariable String id) {
-        return ResponseEntity.ok(Map.of(
-                "message", "Hi! I'm User Service!",
-                "endpoint", "DELETE /api/v1/users/" + id,
-                "service", "user-service",
-                "userId", id
-        ));
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> deleteUser(
+            @PathVariable UUID id,
+            @RequestParam UUID actorId) {
+        return userService.delete(id, actorId);
+    }
+
+    @PutMapping("/{id}/promote-manager")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> promoteToManager(
+            @PathVariable UUID id,
+            @RequestParam UUID actorId) {
+        return userService.promoteToManager(id, actorId);
+    }
+
+    @PutMapping("/{id}/demote-manager")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> demoteToClient(
+            @PathVariable UUID id,
+            @RequestParam UUID actorId) {
+        return userService.demoteToClient(id, actorId);
+    }
+
+    @GetMapping("/{id}/exists")
+    public Mono<Boolean> userExists(@PathVariable UUID id) {
+        return userService.findById(id)
+                .map(user -> true)
+                .defaultIfEmpty(false);
     }
 }
