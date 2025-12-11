@@ -46,6 +46,12 @@ eureka:
     prefer-ip-address: true
     instance-id: gateway:${server.port}
 
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
 # Включаем логирование для отладки
 logging:
   level:
