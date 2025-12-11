@@ -4,6 +4,12 @@ server:
 spring:
   application:
     name: user-service
+  config:
+    import: optional:configserver:${spring.cloud.config.uri:http://localhost:8888}
+  cloud:
+    config:
+      name: user-service
+      profile: ${spring.profiles.active:default}
   r2dbc:
     url: ${USER_DB_URL:r2dbc:postgresql://localhost:5433/userdb}
     username: ${USER_DB_USER:postgres}

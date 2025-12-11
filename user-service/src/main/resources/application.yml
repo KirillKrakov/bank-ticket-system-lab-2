@@ -1,20 +1,28 @@
 spring:
+  application:
+    name: user-service
+
+  config:
+    import: optional:configserver:http://localhost:8888
+
+  cloud:
+    config:
+      name: user-service
+      profile: default
+
   r2dbc:
     url: ${USER_DB_URL:r2dbc:postgresql://localhost:5433/userdb}
     username: ${USER_DB_USER:postgres}
     password: ${USER_DB_PASS:postgres}
+
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 0
-    # Для R2DBC нужно указать отдельное JDBC подключение для миграций
     url: ${USER_DB_JDBC_URL:jdbc:postgresql://localhost:5433/userdb}
     user: ${USER_DB_USER:postgres}
     password: ${USER_DB_PASS:postgres}
-
-# Отключаем R2DBC автоматическую инициализацию схемы
-spring.data.r2dbc.repositories.enabled: true
 
 server:
   port: 8081
@@ -22,7 +30,7 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka}
   instance:
     prefer-ip-address: true
     hostname: ${HOSTNAME:localhost}
@@ -39,3 +47,4 @@ logging:
   level:
     com.example.userservice: DEBUG
     org.springframework.r2dbc: DEBUG
+    org.flywaydb: INFO
