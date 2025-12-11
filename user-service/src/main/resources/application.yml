@@ -9,6 +9,19 @@ spring:
       client:
         composite:
           enabled: true
+  r2dbc:
+    url: ${USER_DB_URL:r2dbc:postgresql://localhost:5433/userdb}
+    username: ${USER_DB_USER:postgres}
+    password: ${USER_DB_PASS:postgres}
+    pool:
+      enabled: true
+      max-size: 10
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: always  # Включаем инициализацию SQL
+      schema-locations: classpath:schema.sql
 
 eureka:
   client:
@@ -20,3 +33,24 @@ eureka:
   instance:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${server.port}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      applicationService:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 5000
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        minimum-number-of-calls: 5
+
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 5000
+        logger-level: basic
+  circuitbreaker:
+    enabled: true
