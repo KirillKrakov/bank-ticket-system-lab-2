@@ -2,7 +2,7 @@ spring:
   config:
     import: ${SPRING_CONFIG_IMPORT:optional:configserver:http://localhost:8888}
   application:
-    name: user-service
+    name: assignment-service
   cloud:
     discovery:
       enabled: true

@@ -11,13 +11,6 @@
     <packaging>pom</packaging>
     <name>Bank Ticket System Lab 2</name>
 
-    <modules>
-        <module>service-discovery</module>
-        <module>config-server</module>
-        <module>gateway</module>
-        <module>user-service</module>
-    </modules>
-
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -31,6 +24,16 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
     </properties>
+
+    <modules>
+        <module>service-discovery</module>
+        <module>config-server</module>
+        <module>gateway</module>
+        <module>user-service</module>
+        <module>product-service</module>
+        <module>application-service</module>
+        <module>assignment-service</module>
+    </modules>
 
     <dependencyManagement>
         <dependencies>

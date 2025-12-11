@@ -1,7 +1,6 @@
-server:
-  port: 8080
-
 spring:
+  config:
+    import: optional:configserver:http://localhost:8888
   application:
     name: gateway
   cloud:
@@ -10,8 +9,46 @@ spring:
         locator:
           enabled: true
           lower-case-service-id: true
+          predicates:
+            - name: Path
+              args:
+                pattern: "'/api/v1/**'"
+      # Явно задаём маршруты для отладки
+      routes:
+        - id: user-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/v1/users/**
+        - id: product-service
+          uri: lb://PRODUCT-SERVICE
+          predicates:
+            - Path=/api/v1/products/**
+        - id: application-service
+          uri: lb://APPLICATION-SERVICE
+          predicates:
+            - Path=/api/v1/applications/**
+        - id: assignment-service
+          uri: lb://ASSIGNMENT-SERVICE
+          predicates:
+            - Path=/api/v1/assignments/**
+
+server:
+  port: 8080
 
 eureka:
   client:
+    enabled: true
     service-url:
-      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka}
+      defaultZone: http://localhost:8761/eureka
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    instance-id: gateway:${server.port}
+
+# Включаем логирование для отладки
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.cloud.loadbalancer: DEBUG
+    com.netflix.discovery: INFO

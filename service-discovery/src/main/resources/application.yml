@@ -4,17 +4,6 @@ server:
 spring:
   application:
     name: service-discovery
-  datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/eureka}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
-  jpa:
-    hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
 
 eureka:
   client:
@@ -22,3 +11,4 @@ eureka:
     fetch-registry: false
   server:
     enable-self-preservation: false
+    wait-time-in-ms-when-sync-empty: 0
