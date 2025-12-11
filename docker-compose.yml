@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Базы данных
+  # Базы данных (используем одну для всех инфраструктурных сервисов)
   postgres-infra:
     image: postgres:17
     environment:
@@ -14,11 +14,6 @@ services:
       - pgdata-infra:/var/lib/postgresql/data
     networks:
       - bank-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   service-discovery:
     build:
@@ -27,16 +22,13 @@ services:
     ports:
       - "8761:8761"
     depends_on:
-      postgres-infra:
-        condition: service_healthy
+      - postgres-infra
     networks:
       - bank-network
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-infra:5432/infra
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-infra:5432/eureka
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      EUREKA_INSTANCE_HOSTNAME: service-discovery  # Важно!
-    hostname: service-discovery  # Важно!
 
   config-server:
     build:
@@ -48,10 +40,6 @@ services:
       - service-discovery
     networks:
       - bank-network
-    environment:
-      EUREKA_INSTANCE_HOSTNAME: config-server
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka
-    hostname: config-server
 
   gateway:
     build:
@@ -65,10 +53,7 @@ services:
     networks:
       - bank-network
     environment:
-      EUREKA_INSTANCE_HOSTNAME: gateway
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka
-      SPRING_CLOUD_GATEWAY_DISCOVERY_LOCATOR_ENABLED: "true"
-    hostname: gateway
 
 networks:
   bank-network:

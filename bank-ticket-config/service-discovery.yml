@@ -1,19 +1,10 @@
 server:
   port: 8761
 
-spring:
-  datasource:
-    url: jdbc:postgresql://postgres-infra:5432/infra
-    username: postgres
-    password: postgres
-  jpa:
-    hibernate:
-      ddl-auto: update
-
 eureka:
   client:
     register-with-eureka: false
     fetch-registry: false
-  instance:
-    hostname: service-discovery
-    prefer-ip-address: false
+  server:
+    enable-self-preservation: false
+    wait-time-in-ms-when-sync-empty: 0
