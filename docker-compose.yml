@@ -1,4 +1,5 @@
 services:
+  # Инфраструктурные сервисы
   service-discovery:
     build:
       context: ./service-discovery
@@ -26,13 +27,15 @@ services:
     environment:
       SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka
-      SPRING_CLOUD_DISCOVERY_ENABLED: "true"
     depends_on:
       - config-server
       - service-discovery
     networks:
       - bank-network
 
+  # Бизнес-сервисы
+
+  # user-service (Reactor + R2DBC)
   postgres-user:
     image: postgres:17
     environment:
@@ -74,6 +77,7 @@ services:
     networks:
       - bank-network
 
+  # product-service (Spring MVC + JPA)
   postgres-product:
     image: postgres:17
     environment:
@@ -114,21 +118,24 @@ services:
     networks:
       - bank-network
 
-  application-service:
-    build:
-      context: ./application-service
-      dockerfile: Dockerfile
-    ports:
-      - "8083:8083"
+  # assignment-service (Spring MVC + JPA)
+  postgres-assignment:
+    image: postgres:17
     environment:
-      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka
-      SPRING_CLOUD_DISCOVERY_ENABLED: "true"
-    depends_on:
-      - config-server
-      - service-discovery
+      POSTGRES_DB: assignmentdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5435:5432"
+    volumes:
+      - pgdata-assignment:/var/lib/postgresql/data
     networks:
       - bank-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   assignment-service:
     build:
@@ -138,8 +145,30 @@ services:
       - "8084:8084"
     environment:
       SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      ASSIGNMENT_DB_URL: jdbc:postgresql://postgres-assignment:5432/assignmentdb
+      ASSIGNMENT_DB_USER: postgres
+      ASSIGNMENT_DB_PASS: postgres
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka
-      SPRING_CLOUD_DISCOVERY_ENABLED: "true"
+    depends_on:
+      postgres-assignment:
+        condition: service_healthy
+      config-server:
+        condition: service_started
+      service-discovery:
+        condition: service_started
+    networks:
+      - bank-network
+
+  # application-service (Stub версия пока)
+  application-service:
+    build:
+      context: ./application-service
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka
     depends_on:
       - config-server
       - service-discovery
@@ -153,3 +182,4 @@ networks:
 volumes:
   pgdata-user:
   pgdata-product:
+  pgdata-assignment:

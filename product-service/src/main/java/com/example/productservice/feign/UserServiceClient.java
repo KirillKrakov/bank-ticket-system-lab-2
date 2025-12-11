@@ -17,5 +17,5 @@ public interface UserServiceClient {
     boolean userExists(@PathVariable("userId") UUID userId);
 
     @GetMapping("/api/v1/users/{userId}/role")
-    UserRole getUserRole(@PathVariable("userId") UUID userId);
+    String getUserRole(@PathVariable("userId") UUID userId);
 }

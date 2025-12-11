@@ -19,8 +19,8 @@ public class UserServiceClientFallback implements UserServiceClient {
     }
 
     @Override
-    public UserRole getUserRole(UUID userId) {
+    public String getUserRole(UUID userId) {
         logger.warn("Fallback: user-service unavailable, returning default role for user {}", userId);
-        return UserRole.ROLE_CLIENT; // Возвращаем роль по умолчанию
+        return "ROLE_CLIENT";
     }
 }
