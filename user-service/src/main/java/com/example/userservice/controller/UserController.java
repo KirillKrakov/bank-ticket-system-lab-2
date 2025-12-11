@@ -96,9 +96,9 @@ public class UserController {
     }
 
     @GetMapping("/{id}/role")
-    public Mono<ResponseEntity<String>> getUserRole(@PathVariable UUID id) {
+    public Mono<ResponseEntity<UserRole>> getUserRole(@PathVariable UUID id) {
         return userService.findById(id)
-                .map(user -> ResponseEntity.ok(user.getRole().name()))
+                .map(user -> ResponseEntity.ok(user.getRole()))
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 }
