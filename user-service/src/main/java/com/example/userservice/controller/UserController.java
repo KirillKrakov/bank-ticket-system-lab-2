@@ -2,6 +2,8 @@ package com.example.userservice.controller;
 
 import com.example.userservice.dto.UserDto;
 import com.example.userservice.dto.UserRequest;
+import com.example.userservice.model.entity.User;
+import com.example.userservice.model.enums.UserRole;
 import com.example.userservice.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -87,9 +89,16 @@ public class UserController {
     }
 
     @GetMapping("/{id}/exists")
-    public Mono<Boolean> userExists(@PathVariable UUID id) {
+    public Mono<ResponseEntity<Boolean>> userExists(@PathVariable UUID id) {
         return userService.findById(id)
-                .map(user -> true)
-                .defaultIfEmpty(false);
+                .map(user -> ResponseEntity.ok(true))
+                .defaultIfEmpty(ResponseEntity.ok(false));
+    }
+
+    @GetMapping("/{id}/role")
+    public Mono<ResponseEntity<String>> getUserRole(@PathVariable UUID id) {
+        return userService.findById(id)
+                .map(user -> ResponseEntity.ok(user.getRole().name()))
+                .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 }

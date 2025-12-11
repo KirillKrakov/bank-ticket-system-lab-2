@@ -74,6 +74,24 @@ services:
     networks:
       - bank-network
 
+  postgres-product:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: productdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata-product:/var/lib/postgresql/data
+    networks:
+      - bank-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   product-service:
     build:
       context: ./product-service
@@ -82,11 +100,17 @@ services:
       - "8082:8082"
     environment:
       SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      PRODUCT_DB_URL: jdbc:postgresql://postgres-product:5432/productdb
+      PRODUCT_DB_USER: postgres
+      PRODUCT_DB_PASS: postgres
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka
-      SPRING_CLOUD_DISCOVERY_ENABLED: "true"
     depends_on:
-      - config-server
-      - service-discovery
+      postgres-product:
+        condition: service_healthy
+      config-server:
+        condition: service_started
+      service-discovery:
+        condition: service_started
     networks:
       - bank-network
 
@@ -128,3 +152,4 @@ networks:
 
 volumes:
   pgdata-user:
+  pgdata-product:
