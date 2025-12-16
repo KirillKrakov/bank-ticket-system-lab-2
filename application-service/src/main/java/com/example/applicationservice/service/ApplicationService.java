@@ -1,15 +1,23 @@
 package com.example.applicationservice.service;
 
-import com.example.bankticketsystem.dto.*;
-import com.example.bankticketsystem.exception.*;
-import com.example.bankticketsystem.model.entity.*;
-import com.example.bankticketsystem.model.enums.ApplicationStatus;
-import com.example.bankticketsystem.model.enums.UserRole;
-import com.example.bankticketsystem.repository.*;
-import com.example.bankticketsystem.util.ApplicationPage;
-import com.example.bankticketsystem.util.CursorUtil;
+
+import com.example.applicationservice.dto.*;
+import com.example.applicationservice.exception.*;
+import com.example.applicationservice.feign.UserServiceClient;
+import com.example.applicationservice.model.entity.Application;
+import com.example.applicationservice.model.entity.ApplicationHistory;
+import com.example.applicationservice.model.entity.Document;
+import com.example.applicationservice.model.enums.ApplicationStatus;
+import com.example.applicationservice.model.enums.UserRole;
+import com.example.applicationservice.repository.ApplicationHistoryRepository;
+import com.example.applicationservice.repository.ApplicationRepository;
+import com.example.applicationservice.util.ApplicationPage;
+import com.example.applicationservice.util.CursorUtil;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,21 +32,18 @@ public class ApplicationService {
 
     private final ApplicationRepository applicationRepository;
     private final ApplicationHistoryRepository applicationHistoryRepository;
-    private final UserService userService;
+    private final UserServiceClient userServiceClient;
     private final ProductService productService;
     private final TagService tagService;
 
-    public ApplicationService(ApplicationRepository applicationRepository,
-                              ApplicationHistoryRepository applicationHistoryRepository,
-                              @Lazy UserService userService,
-                              @Lazy ProductService productService,
-                              TagService tagService) {
+    public ApplicationService(ApplicationRepository applicationRepository, ApplicationHistoryRepository applicationHistoryRepository, UserServiceClient userServiceClient, ProductService productService, TagService tagService) {
         this.applicationRepository = applicationRepository;
         this.applicationHistoryRepository = applicationHistoryRepository;
-        this.userService = userService;
+        this.userServiceClient = userServiceClient;
         this.productService = productService;
-        this.tagService =tagService;
+        this.tagService = tagService;
     }
+
 
     @Transactional
     public ApplicationDto createApplication(ApplicationRequest req) {
@@ -47,8 +52,11 @@ public class ApplicationService {
             throw new BadRequestException("Applicant ID and Product ID must be in request body");
         }
 
-        User applicant = userService.findById(req.getApplicantId())
-                .orElseThrow(() -> new NotFoundException("Applicant not found"));
+        if (!userServiceClient.userExists(req.getApplicantId())) {
+            throw new NotFoundException("Actor not found");
+        }
+
+        UserRole applicantRole = userServiceClient.getUserRole(req.getApplicantId());
 
         Product product = productService.findById(req.getProductId())
                 .orElseThrow(() -> new NotFoundException("Product not found"));
@@ -81,7 +89,7 @@ public class ApplicationService {
         hist.setApplication(app);
         hist.setOldStatus(null);
         hist.setNewStatus(app.getStatus());
-        hist.setChangedBy(applicant.getRole());
+        hist.setChangedBy(applicantRole);
         hist.setChangedAt(Instant.now());
         applicationHistoryRepository.save(hist);
 
@@ -109,8 +117,8 @@ public class ApplicationService {
         dto.setProductId(app.getProduct() != null ? app.getProduct().getId() : null);
         dto.setStatus(app.getStatus());
         dto.setCreatedAt(app.getCreatedAt());
-        List<com.example.bankticketsystem.dto.DocumentDto> docs = app.getDocuments().stream().map(d -> {
-            com.example.bankticketsystem.dto.DocumentDto dd = new com.example.bankticketsystem.dto.DocumentDto();
+        List<DocumentDto> docs = app.getDocuments().stream().map(d -> {
+            DocumentDto dd = new DocumentDto();
             dd.setId(d.getId());
             dd.setFileName(d.getFileName());
             dd.setContentType(d.getContentType());

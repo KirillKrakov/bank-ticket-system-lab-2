@@ -1,6 +1,7 @@
 package com.example.applicationservice.model.entity;
 
 import com.example.applicationservice.model.enums.ApplicationStatus;
+import com.example.applicationservice.model.enums.UserRole;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.*;
