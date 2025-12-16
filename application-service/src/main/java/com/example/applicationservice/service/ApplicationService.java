@@ -39,14 +39,16 @@ public class ApplicationService {
     private final ApplicationHistoryRepository applicationHistoryRepository;
     private final UserServiceClient userServiceClient;
     private final ProductServiceClient productServiceClient;
-    private final TagService tagService;
+    //private final TagService tagService;
 
-    public ApplicationService(ApplicationRepository applicationRepository, ApplicationHistoryRepository applicationHistoryRepository, UserServiceClient userServiceClient, ProductServiceClient productServiceClient, TagService tagService) {
+    public ApplicationService(ApplicationRepository applicationRepository, ApplicationHistoryRepository applicationHistoryRepository, UserServiceClient userServiceClient, ProductServiceClient productServiceClient
+            //, TagService tagService
+    ) {
         this.applicationRepository = applicationRepository;
         this.applicationHistoryRepository = applicationHistoryRepository;
         this.userServiceClient = userServiceClient;
         this.productServiceClient = productServiceClient;
-        this.tagService = tagService;
+        //this.tagService = tagService;
     }
 
     private UserRole convertToUserRole(String roleString) {
@@ -145,10 +147,10 @@ public class ApplicationService {
             dd.setStoragePath(d.getStoragePath());
             return dd;
         }).collect(Collectors.toList());
-        List<String> tagNames = app.getTags() == null ? List.of() :
-                app.getTags().stream().map(Tag::getName).toList();
+       // List<String> tagNames = app.getTags() == null ? List.of() :
+                //app.getTags().stream().map(Tag::getName).toList();
         dto.setDocuments(docs);
-        dto.setTags(tagNames);
+        //dto.setTags(tagNames);
         return dto;
     }
 
@@ -200,10 +202,10 @@ public class ApplicationService {
             throw new ForbiddenException("You must have the rights of an applicant, manager, or administrator for this request");
         }
 
-        for (String name : tagNames) {
-            Tag t = tagService.createTag(name);
-            app.getTags().add(t);
-        }
+//        for (String name : tagNames) {
+//            Tag t = tagService.createTag(name);
+//            app.getTags().add(t);
+//        }
         applicationRepository.save(app);
     }
 
@@ -224,7 +226,7 @@ public class ApplicationService {
             throw new ForbiddenException("You must have the rights of an applicant, manager, or administrator for this request");
         }
 
-        app.getTags().removeIf(tag -> tagNames.contains(tag.getName()));
+        //app.getTags().removeIf(tag -> tagNames.contains(tag.getName()));
         applicationRepository.save(app);
     }
 
