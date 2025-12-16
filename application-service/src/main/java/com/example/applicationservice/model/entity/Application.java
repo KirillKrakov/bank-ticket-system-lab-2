@@ -14,12 +14,12 @@ public class Application {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "applicant_id", nullable = false)
-    private User applicant;
+    @Column(name = "applicant_id", nullable = false)
+    private UUID applicantId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
-    private Product product;
+    @Column(name = "product_id", nullable = false)
+    private UUID productId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
@@ -53,11 +53,11 @@ public class Application {
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
-    public User getApplicant() { return applicant; }
-    public void setApplicant(User applicant) { this.applicant = applicant; }
+    public UUID getApplicantId() {return applicantId;}
+    public void setApplicantId(UUID applicantId) {this.applicantId = applicantId;}
 
-    public Product getProduct() { return product; }
-    public void setProduct(Product product) { this.product = product; }
+    public UUID getProductId() {return productId;}
+    public void setProductId(UUID productId) {this.productId = productId;}
 
     public ApplicationStatus getStatus() { return status; }
     public void setStatus(ApplicationStatus status) { this.status = status; }
