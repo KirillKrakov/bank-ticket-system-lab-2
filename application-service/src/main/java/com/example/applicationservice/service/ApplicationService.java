@@ -84,8 +84,8 @@ public class ApplicationService {
         Application app = new Application();
         UUID applicationId = UUID.randomUUID();
         app.setId(applicationId);
-        app.setApplicant(applicant);
-        app.setProduct(product);
+        app.setApplicantId(req.getApplicantId());
+        app.setProductId(req.getProductId());
         app.setStatus(ApplicationStatus.SUBMITTED);
         app.setCreatedAt(Instant.now());
 
@@ -195,7 +195,7 @@ public class ApplicationService {
         UserRole currentRole = convertToUserRole(roleString);
 
         Application app = applicationRepository.findById(applicationId).orElseThrow(() -> new NotFoundException("Application not found"));
-        if (!(app.getApplicantId().equals(current.getId()) || currentRole == UserRole.ROLE_ADMIN
+        if (!(app.getApplicantId().equals(actorId) || currentRole == UserRole.ROLE_ADMIN
                 || currentRole == UserRole.ROLE_MANAGER)) {
             throw new ForbiddenException("You must have the rights of an applicant, manager, or administrator for this request");
         }
@@ -219,7 +219,7 @@ public class ApplicationService {
         UserRole currentRole = convertToUserRole(roleString);
 
         Application app = applicationRepository.findById(applicationId).orElseThrow(() -> new NotFoundException("Application not found"));
-        if (!(app.getApplicantId().equals(current.getId()) || currentRole == UserRole.ROLE_ADMIN
+        if (!(app.getApplicantId().equals(actorId) || currentRole == UserRole.ROLE_ADMIN
                 || currentRole == UserRole.ROLE_MANAGER)) {
             throw new ForbiddenException("You must have the rights of an applicant, manager, or administrator for this request");
         }
@@ -249,7 +249,7 @@ public class ApplicationService {
             throw new ForbiddenException("Only admin or manager can change application status");
         }
         if (actorRole == UserRole.ROLE_MANAGER) {
-            if (app.getApplicantId() != null && app.getApplicantId().equals(actor.getId())) {
+            if (app.getApplicantId() != null && app.getApplicantId().equals(actorId)) {
                 throw new ConflictException("Managers cannot change status of their own applications");
             }
         }
@@ -327,7 +327,7 @@ public class ApplicationService {
         Application app = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new NotFoundException("Application not found: " + applicationId));
 
-        boolean isApplicant = app.getApplicantId() != null && app.getApplicantId().equals(actor.getId());
+        boolean isApplicant = app.getApplicantId() != null && app.getApplicantId().equals(actorId);
         if (!(isApplicant || actorRole == UserRole.ROLE_ADMIN || actorRole == UserRole.ROLE_MANAGER)) {
             throw new ForbiddenException("Only applicant, manager or admin can see the history of application changes");
         }
