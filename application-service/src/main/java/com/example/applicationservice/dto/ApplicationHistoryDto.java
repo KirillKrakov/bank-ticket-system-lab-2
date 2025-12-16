@@ -1,7 +1,7 @@
 package com.example.applicationservice.dto;
 
-
 import com.example.applicationservice.model.enums.ApplicationStatus;
+import com.example.applicationservice.model.enums.UserRole;
 
 import java.time.Instant;
 import java.util.UUID;

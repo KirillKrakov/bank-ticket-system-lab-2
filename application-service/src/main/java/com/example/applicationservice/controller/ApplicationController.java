@@ -1,11 +1,11 @@
 package com.example.applicationservice.controller;
 
-import com.example.bankticketsystem.dto.ApplicationDto;
-import com.example.bankticketsystem.dto.ApplicationHistoryDto;
-import com.example.bankticketsystem.dto.ApplicationRequest;
-import com.example.bankticketsystem.exception.BadRequestException;
-import com.example.bankticketsystem.service.ApplicationService;
-import com.example.bankticketsystem.util.ApplicationPage;
+import com.example.applicationservice.dto.ApplicationDto;
+import com.example.applicationservice.dto.ApplicationHistoryDto;
+import com.example.applicationservice.dto.ApplicationRequest;
+import com.example.applicationservice.exception.BadRequestException;
+import com.example.applicationservice.service.ApplicationService;
+import com.example.applicationservice.util.ApplicationPage;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;

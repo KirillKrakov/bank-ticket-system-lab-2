@@ -44,6 +44,19 @@ public class ProductService {
         this.assignmentServiceClient = assignmentServiceClient;
     }
 
+    private UserRole convertToUserRole(String roleString) {
+        if (roleString == null) {
+            return UserRole.ROLE_CLIENT;
+        }
+
+        try {
+            return UserRole.valueOf(roleString.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            logger.warn("Unknown role received: {}, defaulting to ROLE_CLIENT", roleString);
+            return UserRole.ROLE_CLIENT;
+        }
+    }
+
     @Transactional
     public ProductDto create(ProductRequest req) {
         if (req == null) {
@@ -116,7 +129,8 @@ public class ProductService {
                 .orElseThrow(() -> new NotFoundException("Product not found: " + productId));
 
         // Проверяем права через Feign
-        UserRole actorRole = userServiceClient.getUserRole(actorId);
+        String roleString = userServiceClient.getUserRole(actorId);
+        UserRole actorRole = convertToUserRole(roleString);
         boolean isAdmin = actorRole == UserRole.ROLE_ADMIN;
 
         boolean isOwner = assignmentServiceClient.existsByUserAndProductAndRole(
@@ -160,7 +174,8 @@ public class ProductService {
                 .orElseThrow(() -> new NotFoundException("Product not found: " + productId));
 
         // Проверяем права через Feign
-        UserRole actorRole = userServiceClient.getUserRole(actorId);
+        String roleString = userServiceClient.getUserRole(actorId);
+        UserRole actorRole = convertToUserRole(roleString);
         boolean isAdmin = actorRole == UserRole.ROLE_ADMIN;
 
         boolean isOwner = assignmentServiceClient.existsByUserAndProductAndRole(
