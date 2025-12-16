@@ -159,7 +159,24 @@ services:
     networks:
       - bank-network
 
-  # application-service (Stub версия пока)
+  postgres-app:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata-app:/var/lib/postgresql/data
+    networks:
+      - bank-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   application-service:
     build:
       context: ./application-service
@@ -168,10 +185,19 @@ services:
       - "8083:8083"
     environment:
       SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      APP_DB_URL: jdbc:postgresql://postgres-app:5434/appdb
+      APP_DB_USER: postgres
+      APP_DB_PASS: postgres
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka
     depends_on:
-      - config-server
-      - service-discovery
+      postgres-app:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+      product-service:
+        condition: service_started
+      tag-service:
+        condition: service_started
     networks:
       - bank-network
 
@@ -183,3 +209,4 @@ volumes:
   pgdata-user:
   pgdata-product:
   pgdata-assignment:
+  pgdata-app:
