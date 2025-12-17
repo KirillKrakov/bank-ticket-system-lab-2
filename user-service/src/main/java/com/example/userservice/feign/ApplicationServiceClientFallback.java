@@ -11,9 +11,9 @@ public class ApplicationServiceClientFallback implements ApplicationServiceClien
     private static final Logger log = LoggerFactory.getLogger(ApplicationServiceClientFallback.class);
 
     @Override
-    public Mono<Void> deleteApplicationsByUserId(String userId) {
+    public Void deleteApplicationsByUserId(String userId) {
         log.warn("Fallback triggered: Cannot delete applications for user {}. " +
                 "Application service might be unavailable.", userId);
-        return Mono.empty();
+        return null;
     }
 }

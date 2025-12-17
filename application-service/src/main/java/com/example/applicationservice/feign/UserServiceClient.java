@@ -17,11 +17,11 @@ import java.util.UUID;
 public interface UserServiceClient {
 
     @GetMapping("/api/v1/users/{id}/exists")
-    Mono<Boolean> userExists(@PathVariable("id") UUID id);
+    Boolean userExists(@PathVariable("id") UUID id);
 
     @GetMapping("/api/v1/users/{id}")
-    Mono<Map<String, Object>> getUserById(@PathVariable("id") UUID id);
+    Map<String, Object> getUserById(@PathVariable("id") UUID id);
 
     @GetMapping("/api/v1/users/{id}/role")
-    Mono<UserRole> getUserRole(@PathVariable("id") UUID id);
+    UserRole getUserRole(@PathVariable("id") UUID id);
 }

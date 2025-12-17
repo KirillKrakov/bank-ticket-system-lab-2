@@ -1,31 +1,73 @@
 package com.example.applicationservice.repository;
 
 import com.example.applicationservice.model.entity.Application;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface ApplicationRepository extends JpaRepository<Application, UUID> {
 
-    List<Application> findByApplicantId(UUID applicantId);
-    List<Application> findByProductId(UUID productId);
+    @Query("SELECT a.id FROM Application a WHERE a.applicantId = :applicantId")
+    List<UUID> findIdsByApplicantId(@Param("applicantId") UUID applicantId);
 
-    @Query(value = "SELECT * FROM application " +
-            "ORDER BY created_at DESC, id DESC " +
-            "LIMIT :limit", nativeQuery = true)
-    List<Application> findFirstPage(@Param("limit") int limit);
+    @Query("SELECT a.id FROM Application a WHERE a.productId = :productId")
+    List<UUID> findIdsByProductId(@Param("productId") UUID productId);
 
-    @Query(value = "SELECT * FROM application " +
-            "WHERE (created_at, id) < (:ts, :id) " +
-            "ORDER BY created_at DESC, id DESC " +
-            "LIMIT :limit", nativeQuery = true)
-    List<Application> findByKeyset(@Param("ts") Instant ts,
-                                   @Param("id") UUID id,
-                                   @Param("limit") int limit);
+
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM application_tag WHERE application_id = :applicationId", nativeQuery = true)
+    void deleteTagsByApplicationId(@Param("applicationId") UUID applicationId);
+
+    // JOIN FETCH для документов И тегов
+    @Query("SELECT DISTINCT a FROM Application a " +
+            "LEFT JOIN FETCH a.documents " +
+            "LEFT JOIN FETCH a.tags")
+    Page<Application> findAllWithDocumentsAndTags(Pageable pageable);
+
+    // JOIN FETCH для конкретной заявки
+    @Query("SELECT DISTINCT a FROM Application a " +
+            "LEFT JOIN FETCH a.documents " +
+            "LEFT JOIN FETCH a.tags " +
+            "WHERE a.id = :id")
+    Optional<Application> findByIdWithDocumentsAndTags(@Param("id") UUID id);
+
+    // Методы для получения ID с пагинацией
+    @Query("SELECT a.id FROM Application a " +
+            "ORDER BY a.createdAt DESC, a.id DESC")
+    List<UUID> findIdsFirstPage(Pageable pageable);  // Используем Pageable вместо @Param
+
+    @Query("SELECT a.id FROM Application a " +
+            "WHERE (a.createdAt < :timestamp OR (a.createdAt = :timestamp AND a.id < :id)) " +
+            "ORDER BY a.createdAt DESC, a.id DESC")
+    List<UUID> findIdsByKeyset(@Param("timestamp") Instant timestamp,
+                               @Param("id") UUID id,
+                               Pageable pageable);
+
+    // Метод для загрузки полных данных по списку ID
+    @Query("SELECT DISTINCT a FROM Application a " +
+            "LEFT JOIN FETCH a.documents " +
+            "LEFT JOIN FETCH a.tags " +
+            "WHERE a.id IN :ids")
+    List<Application> findAllByIdWithDocumentsAndTags(@Param("ids") List<UUID> ids);
+
+    default List<UUID> findIdsFirstPage(int limit) {
+        return findIdsFirstPage(PageRequest.of(0, limit));
+    }
+
+    default List<UUID> findIdsByKeyset(Instant timestamp, UUID id, int limit) {
+        return findIdsByKeyset(timestamp, id, PageRequest.of(0, limit));
+    }
 }

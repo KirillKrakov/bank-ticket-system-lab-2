@@ -15,8 +15,8 @@ import java.util.UUID;
 public interface ProductServiceClient {
 
     @GetMapping("/api/v1/products/{id}/exists")
-    Mono<Boolean> productExists(@PathVariable("id") UUID id);
+    Boolean productExists(@PathVariable("id") UUID id);
 
     @GetMapping("/api/v1/products/{id}")
-    Mono<Map<String, Object>> getProductById(@PathVariable("id") UUID id);
+    Map<String, Object> getProductById(@PathVariable("id") UUID id);
 }

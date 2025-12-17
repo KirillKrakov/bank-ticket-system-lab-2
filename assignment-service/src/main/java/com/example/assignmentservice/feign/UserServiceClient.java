@@ -1,5 +1,6 @@
 package com.example.assignmentservice.feign;
 
+import com.example.assignmentservice.model.enums.UserRole;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,5 +17,5 @@ public interface UserServiceClient {
     Boolean userExists(@PathVariable("userId") UUID userId);
 
     @GetMapping("/api/v1/users/{userId}/role")
-    String getUserRole(@PathVariable("userId") UUID userId);
+    UserRole getUserRole(@PathVariable("userId") UUID userId);
 }
