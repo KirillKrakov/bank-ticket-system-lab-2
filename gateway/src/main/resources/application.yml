@@ -9,10 +9,6 @@ spring:
         locator:
           enabled: true
           lower-case-service-id: true
-          predicates:
-            - name: Path
-              args:
-                pattern: "'/api/v1/**'"
       # Явно задаём маршруты для отладки
       routes:
         - id: user-service
@@ -31,6 +27,41 @@ spring:
           uri: lb://ASSIGNMENT-SERVICE
           predicates:
             - Path=/api/v1/assignments/**
+        - id: tag-service
+          uri: lb://TAG-SERVICE
+          predicates:
+            - Path=/api/v1/tags/**
+
+# Конфигурация Swagger UI для агрегации
+springdoc:
+  api-docs:
+    enabled: true
+    groups:
+      enabled: true
+  swagger-ui:
+    enabled: true
+    urls:
+      - name: User Service
+        url: /user-service/v3/api-docs
+      - name: Application Service
+        url: /application-service/v3/api-docs
+      - name: Product Service
+        url: /product-service/v3/api-docs
+      - name: Assignment Service
+        url: /assignment-service/v3/api-docs
+      - name: Tag Service
+        url: /tag-service/v3/api-docs
+    disable-swagger-default-url: true
+    # Критически важные настройки:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    doc-expansion: none
+    validator-url: ""
+    # Настройки для проксирования запросов:
+    use-root-path: false
+    query-config-enabled: true
+    display-request-duration: true
 
 server:
   port: 8080
@@ -46,15 +77,10 @@ eureka:
     prefer-ip-address: true
     instance-id: gateway:${server.port}
 
-springdoc:
-  api-docs:
-    path: /api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-
 # Включаем логирование для отладки
 logging:
   level:
     org.springframework.cloud.gateway: DEBUG
     org.springframework.cloud.loadbalancer: DEBUG
     com.netflix.discovery: INFO
+    org.springframework.web: DEBUG

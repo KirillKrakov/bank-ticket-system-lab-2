@@ -12,6 +12,6 @@ import java.util.UUID;
 )
 public interface ApplicationServiceClient {
 
-    @DeleteMapping("/api/internal/applications/by-product")
+    @DeleteMapping("/api/v1/applications/internal/by-product")
     void deleteApplicationsByProductId(@RequestParam("productId") UUID productId);
 }

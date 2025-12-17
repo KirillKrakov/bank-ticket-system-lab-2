@@ -11,6 +11,6 @@ import reactor.core.publisher.Mono;
 )
 public interface ApplicationServiceClient {
 
-    @DeleteMapping("/api/internal/applications/by-user")
+    @DeleteMapping("/api/v1/applications/internal/by-user")
     Mono<Void> deleteApplicationsByUserId(@RequestParam("userId") String userId);
 }
