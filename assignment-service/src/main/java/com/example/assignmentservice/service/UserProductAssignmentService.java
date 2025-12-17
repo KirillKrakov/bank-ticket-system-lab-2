@@ -6,6 +6,7 @@ import com.example.assignmentservice.feign.ProductServiceClient;
 import com.example.assignmentservice.feign.UserServiceClient;
 import com.example.assignmentservice.model.entity.UserProductAssignment;
 import com.example.assignmentservice.model.enums.AssignmentRole;
+import com.example.assignmentservice.model.enums.UserRole;
 import com.example.assignmentservice.repository.UserProductAssignmentRepository;
 import feign.FeignException;
 import org.slf4j.Logger;
@@ -141,8 +142,8 @@ public class UserProductAssignmentService {
     // Вспомогательные методы
     private void checkActorRights(UUID actorId, UUID productId) {
         try {
-            String actorRole = userServiceClient.getUserRole(actorId);
-            boolean isAdmin = "ROLE_ADMIN".equals(actorRole);
+            UserRole actorRole = userServiceClient.getUserRole(actorId);
+            boolean isAdmin = actorRole == UserRole.ROLE_ADMIN;
             boolean isOwner = repo.existsByUserIdAndProductIdAndRoleOnProduct(
                     actorId, productId, AssignmentRole.PRODUCT_OWNER);
 
@@ -160,8 +161,8 @@ public class UserProductAssignmentService {
 
     private void checkAdminRights(UUID actorId) {
         try {
-            String actorRole = userServiceClient.getUserRole(actorId);
-            if (!"ROLE_ADMIN".equals(actorRole)) {
+            UserRole actorRole = userServiceClient.getUserRole(actorId);
+            if (!(actorRole == UserRole.ROLE_ADMIN)) {
                 throw new ForbiddenException("Only ADMIN can delete assignments");
             }
         } catch (FeignException.NotFound e) {

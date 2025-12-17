@@ -10,7 +10,8 @@ import java.util.List;
 
 @FeignClient(
         name = "tag-service",
-        fallback = TagServiceClientFallback.class
+        configuration = ReactiveFeignConfiguration.class,
+        fallbackFactory = TagServiceClientFallbackFactory.class
 )
 public interface TagServiceClient {
 
