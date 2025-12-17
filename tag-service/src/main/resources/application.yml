@@ -2,7 +2,7 @@ spring:
   config:
     import: ${SPRING_CONFIG_IMPORT:optional:configserver:http://localhost:8888}
   application:
-    name: assignment-service
+    name: tag-service
   cloud:
     discovery:
       enabled: true
@@ -23,9 +23,9 @@ spring:
       schema-locations: classpath:schema.sql
       continue-on-error: true
   datasource:
-    url: ${ASSIGNMENT_DB_URL:jdbc:postgresql://localhost:5435/assignmentdb}
-    username: ${ASSIGNMENT_DB_USER:postgres}
-    password: ${ASSIGNMENT_DB_PASS:postgres}
+    url: ${TAG_DB_URL:jdbc:postgresql://localhost:5437/tagdb}
+    username: ${TAG_DB_USER:postgres}
+    password: ${TAG_DB_PASS:postgres}
     hikari:
       maximum-pool-size: 10
 
@@ -39,33 +39,6 @@ eureka:
   instance:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${server.port}
-
-resilience4j:
-  circuitbreaker:
-    instances:
-      userService:
-        sliding-window-size: 10
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 5000
-        permitted-number-of-calls-in-half-open-state: 3
-        automatic-transition-from-open-to-half-open-enabled: true
-        minimum-number-of-calls: 5
-      productService:
-        sliding-window-size: 10
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 5000
-        permitted-number-of-calls-in-half-open-state: 3
-        automatic-transition-from-open-to-half-open-enabled: true
-        minimum-number-of-calls: 5
-
-feign:
-  client:
-    config:
-      default:
-        connect-timeout: 5000
-        read-timeout: 5000
-  circuitbreaker:
-    enabled: true
 
 springdoc:
   api-docs:

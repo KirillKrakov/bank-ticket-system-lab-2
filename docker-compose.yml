@@ -166,7 +166,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5434:5432"
+      - "5436:5432"
     volumes:
       - pgdata-app:/var/lib/postgresql/data
     networks:
@@ -185,7 +185,7 @@ services:
       - "8083:8083"
     environment:
       SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
-      APP_DB_URL: jdbc:postgresql://postgres-app:5434/appdb
+      APP_DB_URL: jdbc:postgresql://postgres-app:5432/appdb
       APP_DB_USER: postgres
       APP_DB_PASS: postgres
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka
@@ -201,6 +201,46 @@ services:
     networks:
       - bank-network
 
+  postgres-tag:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: tagdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5437:5432"
+    volumes:
+      - pgdata-tag:/var/lib/postgresql/data
+    networks:
+      - bank-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  tag-service:
+    build:
+      context: ./tag-service
+      dockerfile: Dockerfile
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      TAG_DB_URL: jdbc:postgresql://postgres-tag:5432/tagdb
+      TAG_DB_USER: postgres
+      TAG_DB_PASS: postgres
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka
+    depends_on:
+      postgres-tag:
+        condition: service_healthy
+      config-server:
+        condition: service_started
+      service-discovery:
+        condition: service_started
+    networks:
+      - bank-network
+
 networks:
   bank-network:
     driver: bridge
@@ -210,3 +250,4 @@ volumes:
   pgdata-product:
   pgdata-assignment:
   pgdata-app:
+  pgdata-tag:

@@ -33,6 +33,7 @@
         <module>product-service</module>
         <module>application-service</module>
         <module>assignment-service</module>
+        <module>tag-service</module>
     </modules>
 
     <dependencyManagement>

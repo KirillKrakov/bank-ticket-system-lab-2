@@ -15,7 +15,7 @@ public class UserServiceClientFallback implements UserServiceClient {
     @Override
     public boolean userExists(UUID userId) {
         logger.warn("Fallback: user-service unavailable, assuming user {} exists", userId);
-        return true; // Безопаснее предположить, что пользователь существует
+        return false; // Безопаснее предположить, что пользователя не существует
     }
 
     @Override

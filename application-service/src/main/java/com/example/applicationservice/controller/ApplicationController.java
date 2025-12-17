@@ -327,10 +327,21 @@ public class ApplicationController {
                 });
     }
 
-    // Health check endpoint
-    @GetMapping("/health")
-    @ResponseStatus(HttpStatus.OK)
-    public Mono<ResponseEntity<String>> health() {
-        return Mono.just(ResponseEntity.ok("Application service is healthy"));
+    // Internal endpoint для user-service
+    @Operation(summary = "Delete applications by product ID (internal)",
+            description = "Delete all applications for a product (internal use only)")
+    @DeleteMapping("/internal/by-product")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<ResponseEntity<Void>> deleteApplicationsByProductId(
+            @RequestParam("productId") UUID productId) {
+
+        log.info("Deleting all applications for product {} (internal call)", productId);
+
+        return applicationService.deleteApplicationsByProductId(productId)
+                .then(Mono.just(ResponseEntity.noContent().<Void>build()))
+                .onErrorResume(e -> {
+                    log.error("Failed to delete applications for product {}: {}", productId, e.getMessage());
+                    return Mono.just(ResponseEntity.internalServerError().build());
+                });
     }
 }

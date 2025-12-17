@@ -18,7 +18,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: false
   datasource:
-    url: ${APP_DB_URL:jdbc:postgresql://localhost:5434/appdb}
+    url: ${APP_DB_URL:jdbc:postgresql://localhost:5436/appdb}
     username: ${APP_DB_USER:postgres}
     password: ${APP_DB_PASS:postgres}
     hikari:
@@ -74,3 +74,14 @@ feign:
         logger-level: basic
   circuitbreaker:
     enabled: true
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: false
+
+logging:
+  level:
+    com.example: DEBUG
+    org.springframework.cloud: INFO

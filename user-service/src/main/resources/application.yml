@@ -54,3 +54,14 @@ feign:
         logger-level: basic
   circuitbreaker:
     enabled: true
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: false
+
+logging:
+  level:
+    com.example: DEBUG
+    org.springframework.cloud: INFO

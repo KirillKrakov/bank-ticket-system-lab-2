@@ -57,12 +57,6 @@
             <artifactId>spring-cloud-starter-circuitbreaker-reactor-resilience4j</artifactId>
         </dependency>
 
-        <!-- R2DBC для реактивных транзакций (опционально) -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-r2dbc</artifactId>
-        </dependency>
-
         <!-- Config Client и Eureka Client -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
@@ -95,6 +89,13 @@
             <artifactId>swagger-annotations-jakarta</artifactId>
             <version>2.2.38</version>
             <scope>compile</scope>
+        </dependency>
+
+        <!-- Swagger/OpenAPI (для WebFlux)-->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+            <version>2.8.14</version>
         </dependency>
     </dependencies>
 

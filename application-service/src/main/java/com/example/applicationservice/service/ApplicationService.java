@@ -362,6 +362,21 @@ public class ApplicationService {
         }).subscribeOn(Schedulers.boundedElastic());
     }
 
+    // Внутренний endpoint для product-service
+    @Transactional
+    public Mono<Void> deleteApplicationsByProductId(UUID productId) {
+        return Mono.fromCallable(() -> {
+            List<Application> applications = applicationRepository.findByProductId(productId);
+            for (Application app : applications) {
+                documentRepository.deleteAll(app.getDocuments());
+                applicationHistoryRepository.deleteAll(app.getHistory());
+                applicationRepository.delete(app);
+                log.info("Deleted application {} for product {}", app.getId(), productId);
+            }
+            return (Void) null;
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
     // Вспомогательные методы
     private ApplicationDto toDto(Application app) {
         ApplicationDto dto = new ApplicationDto();
