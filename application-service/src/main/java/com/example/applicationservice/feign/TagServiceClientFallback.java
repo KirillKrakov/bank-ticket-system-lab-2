@@ -20,20 +20,4 @@ public class TagServiceClientFallback implements TagServiceClient {
         log.warn("Fallback: Cannot create/get tags batch: {}", tagNames);
         return Collections.emptyList();
     }
-
-    @Override
-    public Boolean tagExists(String name) {
-        log.warn("Fallback: Cannot check if tag exists: {}", name);
-        return false;
-    }
-
-    @Override
-    public TagDto createTag(String name) {
-        log.warn("Fallback: Cannot create tag: {}", name);
-        // Создаём заглушку
-        TagDto dto = new TagDto();
-        dto.setId(UUID.randomUUID());
-        dto.setName(name);
-        return dto;
-    }
 }

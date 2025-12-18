@@ -147,13 +147,35 @@ public class ApplicationService {
         if (size > 50) {
             return Flux.error(new BadRequestException("Page size cannot exceed 50"));
         }
-
         return Mono.fromCallable(() -> {
                     Pageable pageable = PageRequest.of(page, size);
-                    // Используем обновленный метод
-                    Page<Application> applications = applicationRepository.findAllWithDocumentsAndTags(pageable);
+                    // 1. Получаем заявки с документами (без тегов)
+                    Page<Application> applicationsPage = applicationRepository.findAllWithDocuments(pageable);
+                    List<Application> applications = applicationsPage.getContent();
+                    if (applications.isEmpty()) {
+                        return List.<ApplicationDto>of();
+                    }
+                    // 2. Получаем ID заявок для загрузки тегов
+                    List<UUID> applicationIds = applications.stream()
+                            .map(Application::getId)
+                            .collect(Collectors.toList());
+                    // 3. Загружаем теги отдельным запросом
+                    List<Application> appsWithTags = applicationRepository.findByIdsWithTags(applicationIds);
+                    // 4. Создаем карту тегов
+                    Map<UUID, Set<String>> tagsMap = new HashMap<>();
+                    for (Application appWithTags : appsWithTags) {
+                        tagsMap.put(appWithTags.getId(), appWithTags.getTags());
+                    }
+                    // 5. Объединяем данные
                     return applications.stream()
-                            .map(this::toDto)
+                            .map(app -> {
+                                // Добавляем теги из карты
+                                Set<String> tags = tagsMap.get(app.getId());
+                                if (tags != null) {
+                                    app.setTags(tags);
+                                }
+                                return toDto(app);
+                            })
                             .collect(Collectors.toList());
                 }).subscribeOn(Schedulers.boundedElastic())
                 .flatMapMany(Flux::fromIterable);
@@ -161,11 +183,18 @@ public class ApplicationService {
 
     @Transactional(readOnly = true)
     public Mono<ApplicationDto> findById(UUID id) {
-        return Mono.fromCallable(() ->
-                applicationRepository.findByIdWithDocumentsAndTags(id)
-                        .map(this::toDto)
-                        .orElse(null)
-        ).subscribeOn(Schedulers.boundedElastic());
+        return Mono.fromCallable(() -> {
+            // 1. Получаем заявку с документами
+            Optional<Application> appWithDocs = applicationRepository.findByIdWithDocuments(id);
+            if (appWithDocs.isEmpty()) {
+                return null;
+            }
+            Application app = appWithDocs.get();
+            // 2. Получаем теги отдельно
+            Optional<Application> appWithTags = applicationRepository.findByIdWithTags(id);
+            appWithTags.ifPresent(appWithTag -> app.setTags(appWithTag.getTags()));
+            return toDto(app);
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     @Transactional(readOnly = true)
@@ -174,11 +203,8 @@ public class ApplicationService {
             return Mono.error(new BadRequestException("limit must be greater than 0"));
         }
         int capped = Math.min(limit, 50);
-
-        // Создаем final переменные или используем final reference
         final Instant[] tsHolder = new Instant[1];
         final UUID[] idHolder = new UUID[1];
-
         if (cursor != null && !cursor.trim().isEmpty()) {
             try {
                 CursorUtil.Decoded decoded = CursorUtil.decode(cursor);
@@ -190,11 +216,9 @@ public class ApplicationService {
                 return Mono.error(new BadRequestException("Invalid cursor format: " + e.getMessage()));
             }
         }
-
         return Mono.fromCallable(() -> {
             Instant ts = tsHolder[0];
             UUID id = idHolder[0];
-
             // Получаем ID заявок с пагинацией
             List<UUID> appIds;
             if (ts == null) {
@@ -202,22 +226,39 @@ public class ApplicationService {
             } else {
                 appIds = applicationRepository.findIdsByKeyset(ts, id, capped);
             }
-
-            // Загружаем полные данные для этих ID
-            List<Application> apps = appIds.isEmpty()
-                    ? List.of()
-                    : applicationRepository.findAllByIdWithDocumentsAndTags(appIds);
-
+            if (appIds.isEmpty()) {
+                return new ApplicationPage(List.of(), null);
+            }
+            // Загружаем документы отдельно
+            List<Application> appsWithDocs = applicationRepository.findByIdsWithDocuments(appIds);
+            // Загружаем теги отдельно
+            List<Application> appsWithTags = applicationRepository.findByIdsWithTags(appIds);
+            // Создаем карту для объединения данных
+            Map<UUID, Application> appMap = new HashMap<>();
+            // Добавляем документы
+            for (Application app : appsWithDocs) {
+                appMap.put(app.getId(), app);
+            }
+            // Добавляем теги
+            for (Application appWithTags : appsWithTags) {
+                Application app = appMap.get(appWithTags.getId());
+                if (app != null) {
+                    app.setTags(appWithTags.getTags());
+                }
+            }
+            // Преобразуем в список в правильном порядке
+            List<Application> apps = appIds.stream()
+                    .map(appMap::get)
+                    .filter(Objects::nonNull)
+                    .toList();
             List<ApplicationDto> dtos = apps.stream()
                     .map(this::toDto)
                     .collect(Collectors.toList());
-
             String nextCursor = null;
             if (!apps.isEmpty()) {
                 Application last = apps.get(apps.size() - 1);
                 nextCursor = CursorUtil.encode(last.getCreatedAt(), last.getId());
             }
-
             return new ApplicationPage(dtos, nextCursor);
         }).subscribeOn(Schedulers.boundedElastic());
     }
@@ -284,34 +325,38 @@ public class ApplicationService {
     @Transactional
     public Mono<ApplicationDto> changeStatus(UUID applicationId, String status, UUID actorId) {
         return Mono.fromCallable(() -> {
-            // Вся логика в одном блоке
-
             // 1. Проверка прав
             UserRole role = userServiceClient.getUserRole(actorId);
             boolean isManagerOrAdmin = "ROLE_ADMIN".equals(role.name()) || "ROLE_MANAGER".equals(role.name());
             if (!isManagerOrAdmin) {
                 throw new ForbiddenException("Only admin or manager can change application status");
             }
-
-            // 2. Получаем заявку с JOIN FETCH
-            Application app = applicationRepository.findByIdWithDocumentsAndTags(applicationId)
+            // 2. Получаем базовую заявку для проверки прав
+            Application basicApp = applicationRepository.findById(applicationId)
                     .orElseThrow(() -> new NotFoundException("Application not found"));
-
             // 3. Проверка на менеджера
-            if (app.getApplicantId().equals(actorId) && "ROLE_MANAGER".equals(role.name())) {
+            if (basicApp.getApplicantId().equals(actorId) && "ROLE_MANAGER".equals(role.name())) {
                 throw new ConflictException("Managers cannot change status of their own applications");
             }
-
-            // 4. Меняем статус
-            ApplicationStatus newStatus = ApplicationStatus.valueOf(status.trim().toUpperCase());
+            // 4. Получаем полную заявку (документы и теги отдельно)
+            Optional<Application> appWithDocs = applicationRepository.findByIdWithDocuments(applicationId);
+            Application app = appWithDocs.orElse(basicApp);
+            // Загружаем теги если нужно
+            Optional<Application> appWithTags = applicationRepository.findByIdWithTags(applicationId);
+            appWithTags.ifPresent(appWithTag -> app.setTags(appWithTag.getTags()));
+            // 5. Меняем статус
+            ApplicationStatus newStatus;
+            try {
+                newStatus = ApplicationStatus.valueOf(status.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new ConflictException("Invalid status. Valid values: DRAFT, SUBMITTED, IN_REVIEW, APPROVED, REJECTED");
+            }
             ApplicationStatus oldStatus = app.getStatus();
-
             if (oldStatus != newStatus) {
                 app.setStatus(newStatus);
                 app.setUpdatedAt(Instant.now());
                 applicationRepository.save(app);
-
-                // 5. Сохраняем историю
+                // 6. Сохраняем историю
                 ApplicationHistory hist = new ApplicationHistory();
                 hist.setId(UUID.randomUUID());
                 hist.setApplication(app);
@@ -324,8 +369,7 @@ public class ApplicationService {
                 log.info("Application {} status changed from {} to {}",
                         applicationId, oldStatus, newStatus);
             }
-
-            // 6. Возвращаем DTO
+            // 7. Возвращаем DTO
             return toDto(app);
 
         }).subscribeOn(Schedulers.boundedElastic());
@@ -412,6 +456,34 @@ public class ApplicationService {
             }
             return (Void) null;
         }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @Transactional(readOnly = true)
+    public Mono<List<ApplicationInfoDto>> findApplicationsByTag(String tagName) {
+        return Mono.fromCallable(() -> {
+            try {
+                List<Application> applications = applicationRepository.findByTag(tagName);
+                List<ApplicationInfoDto> dtos = applications.stream()
+                        .map(this::toInfoDto)
+                        .collect(Collectors.toList());
+
+                log.info("Found {} applications with tag {}", dtos.size(), tagName);
+                return dtos;
+            } catch (Exception e) {
+                log.error("Failed to get applications by tag {}: {}", tagName, e.getMessage());
+                throw new BadRequestException("Failed to get applications by tag: " + e.getMessage());
+            }
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    private ApplicationInfoDto toInfoDto(Application app) {
+        ApplicationInfoDto dto = new ApplicationInfoDto();
+        dto.setId(app.getId());
+        dto.setApplicantId(app.getApplicantId());
+        dto.setProductId(app.getProductId());
+        dto.setStatus(app.getStatus().toString());
+        dto.setCreatedAt(app.getCreatedAt());
+        return dto;
     }
 
     // Вспомогательные методы

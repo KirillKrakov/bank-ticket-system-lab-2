@@ -1,7 +1,9 @@
 package com.example.tagservice.service;
 
+import com.example.tagservice.dto.ApplicationInfoDto;
 import com.example.tagservice.dto.TagDto;
 import com.example.tagservice.exception.NotFoundException;
+import com.example.tagservice.feign.ApplicationServiceClient;
 import com.example.tagservice.model.entity.Tag;
 import com.example.tagservice.repository.TagRepository;
 import org.slf4j.Logger;
@@ -20,9 +22,11 @@ public class TagService {
 
     private static final Logger log = LoggerFactory.getLogger(TagService.class);
     private final TagRepository tagRepository;
+    private final ApplicationServiceClient applicationServiceClient;
 
-    public TagService(TagRepository tagRepository) {
+    public TagService(TagRepository tagRepository, ApplicationServiceClient applicationServiceClient) {
         this.tagRepository = tagRepository;
+        this.applicationServiceClient = applicationServiceClient;
     }
 
     @Transactional
@@ -89,29 +93,15 @@ public class TagService {
     public TagDto getTagByName(String name) {
         Tag tag = tagRepository.findByName(name)
                 .orElseThrow(() -> new NotFoundException("Tag not found: " + name));
-
         return toDto(tag);
     }
 
-    @Transactional(readOnly = true)
-    public boolean tagExists(String name) {
-        return tagRepository.existsByName(name);
-    }
-
-    @Transactional(readOnly = true)
-    public List<TagDto> getTagsByNames(List<String> names) {
-        List<Tag> tags = tagRepository.findByNames(names);
-        return tags.stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
-    }
-
     private TagDto toDto(Tag tag) {
+        List<ApplicationInfoDto> applications = applicationServiceClient.getApplicationsByTag(tag.getName());
         TagDto dto = new TagDto();
         dto.setId(tag.getId());
         dto.setName(tag.getName());
-        // Примечание: applicationIds не заполняются в tag-service,
-        // так как связь хранится в application-service
+        dto.setApplications(applications);
         return dto;
     }
 }

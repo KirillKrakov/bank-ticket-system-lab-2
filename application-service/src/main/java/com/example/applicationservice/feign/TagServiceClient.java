@@ -24,10 +24,4 @@ public interface TagServiceClient {
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     List<TagDto> createOrGetTagsBatch(@RequestBody List<String> tagNames);
-
-    @GetMapping("/api/v1/tags/{name}/exists")
-    Boolean tagExists(@PathVariable String name);
-
-    @PostMapping("/api/v1/tags")
-    TagDto createTag(@RequestBody String name);
 }
