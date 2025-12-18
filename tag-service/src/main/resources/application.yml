@@ -17,17 +17,26 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: false
-  sql:
-    init:
-      mode: always
-      schema-locations: classpath:schema.sql
-      continue-on-error: true
   datasource:
     url: ${TAG_DB_URL:jdbc:postgresql://localhost:5437/tagdb}
     username: ${TAG_DB_USER:postgres}
     password: ${TAG_DB_PASS:postgres}
     hikari:
       maximum-pool-size: 10
+  liquibase:
+    enabled: true
+    change-log: classpath:/db/changelog/changelog-master.yaml
+    default-schema: public
+    drop-first: false
+    contexts: ${LIQUIBASE_CONTEXTS:dev}
+    liquibase-schema: public
+    database-change-log-table: DATABASECHANGELOG
+    database-change-log-lock-table: DATABASECHANGELOGLOCK
+    clear-checksums: false
+    test-rollback-on-update: false
+  sql:
+    init:
+      mode: never
 
 eureka:
   client:
@@ -73,3 +82,4 @@ logging:
   level:
     com.example: DEBUG
     org.springframework.cloud: INFO
+    org.liquibase: INFO

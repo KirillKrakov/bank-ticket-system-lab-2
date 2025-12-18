@@ -11,7 +11,7 @@ spring:
           enabled: true
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: validate  # ИЛИ none для production
     properties:
       hibernate:
         enable_lazy_load_no_trans: false
@@ -26,12 +26,15 @@ spring:
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
+  liquibase:
+    enabled: true
+    change-log: classpath:/db/changelog/changelog-master.yaml
+    default-schema: public
+    drop-first: false
+    contexts: dev
   sql:
     init:
-      mode: always
-      schema-locations: classpath:schema.sql
-  main:
-    allow-bean-definition-overriding: true
+      mode: never
 
 eureka:
   client:
