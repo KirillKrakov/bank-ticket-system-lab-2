@@ -17,11 +17,11 @@ spring:
       enabled: true
       max-size: 10
   flyway:
-    enabled: false
-  sql:
-    init:
-      mode: always  # Включаем инициализацию SQL
-      schema-locations: classpath:schema.sql
+    enabled: true
+    url: ${USER_DB_JDBC_URL:jdbc:postgresql://localhost:5433/userdb}
+    user: ${USER_DB_USER:postgres}
+    password: ${USER_DB_PASS:postgres}
+    locations: classpath:db/migration
 
 eureka:
   client:
