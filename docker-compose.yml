@@ -88,7 +88,6 @@ services:
       - "5434:5432"
     volumes:
       - pgdata-product:/var/lib/postgresql/data
-      - ./product-service/src/main/resources/db/changelog:/docker-entrypoint-initdb.d:ro
     networks:
       - bank-network
     healthcheck:
@@ -130,7 +129,6 @@ services:
       - "5435:5432"
     volumes:
       - pgdata-assignment:/var/lib/postgresql/data
-      - ./assignment-service/src/main/resources/db/changelog:/docker-entrypoint-initdb.d:ro
     networks:
       - bank-network
     healthcheck:
@@ -171,7 +169,6 @@ services:
       - "5436:5432"
     volumes:
       - pgdata-app:/var/lib/postgresql/data
-      - ./application-service/src/main/resources/db/changelog:/docker-entrypoint-initdb.d:ro
     networks:
       - bank-network
     healthcheck:
@@ -214,7 +211,6 @@ services:
       - "5437:5432"
     volumes:
       - pgdata-tag:/var/lib/postgresql/data
-      - ./tag-service/src/main/resources/db/changelog:/docker-entrypoint-initdb.d:ro
     networks:
       - bank-network
     healthcheck:
