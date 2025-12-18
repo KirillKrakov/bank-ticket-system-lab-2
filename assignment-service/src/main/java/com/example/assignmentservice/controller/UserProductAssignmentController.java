@@ -9,10 +9,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
+import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.util.List;
@@ -23,6 +27,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1/assignments")
 public class UserProductAssignmentController {
 
+    private static final Logger log = LoggerFactory.getLogger(UserProductAssignmentController.class);
     private final UserProductAssignmentService service;
 
     @Autowired
@@ -105,5 +110,40 @@ public class UserProductAssignmentController {
 
         service.deleteAssignments(actorId, userId, productId);
         return ResponseEntity.noContent().build();
+    }
+
+    // Internal endpoint для user-service
+    @Operation(summary = "Delete assignments by user ID (internal)",
+            description = "Delete all assignments for a current user (internal use only)")
+    @DeleteMapping("/internal/by-user")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<ResponseEntity<Void>> deleteAssignmentsByUserId(
+            @RequestParam("userId") UUID userId) {
+
+        log.info("Deleting all assignments for user {} (internal call)", userId);
+
+        return service.deleteAssignmentsByUserId(userId)
+                .then(Mono.just(ResponseEntity.noContent().<Void>build()))
+                .onErrorResume(e -> {
+                    log.error("Failed to delete assignments for user {}: {}", userId, e.getMessage());
+                    return Mono.just(ResponseEntity.internalServerError().build());
+                });
+    }
+
+    @Operation(summary = "Delete assignments by product ID (internal)",
+            description = "Delete all assignments for product (internal use only)")
+    @DeleteMapping("/internal/by-product")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<ResponseEntity<Void>> deleteAssignmentsByProductId(
+            @RequestParam("productId") UUID productId) {
+
+        log.info("Deleting all assignments  for product {} (internal call)", productId);
+
+        return service.deleteAssignmentsByProductId(productId)
+                .then(Mono.just(ResponseEntity.noContent().<Void>build()))
+                .onErrorResume(e -> {
+                    log.error("Failed to delete assignments for product {}: {}", productId, e.getMessage());
+                    return Mono.just(ResponseEntity.internalServerError().build());
+                });
     }
 }

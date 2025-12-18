@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Instant;
 import java.util.List;
@@ -130,13 +132,19 @@ public class UserProductAssignmentService {
     }
 
     @Transactional
-    public void deleteByProductId(UUID productId) {
-        repo.deleteByProductId(productId);
+    public Mono<Void> deleteAssignmentsByProductId(UUID productId) {
+        return Mono.fromCallable(() -> {
+            repo.deleteByProductId(productId);
+            return (Void) null;
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     @Transactional
-    public void deleteByUserId(UUID userId) {
-        repo.deleteByUserId(userId);
+    public Mono<Void> deleteAssignmentsByUserId(UUID userId) {
+        return Mono.fromCallable(() -> {
+            repo.deleteByUserId(userId);
+            return (Void) null;
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     // Вспомогательные методы

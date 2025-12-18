@@ -4,6 +4,7 @@ import com.example.userservice.dto.UserDto;
 import com.example.userservice.dto.UserRequest;
 import com.example.userservice.exception.*;
 import com.example.userservice.feign.ApplicationServiceClient;
+import com.example.userservice.feign.AssignmentServiceClient;
 import com.example.userservice.model.entity.User;
 import com.example.userservice.model.enums.UserRole;
 import com.example.userservice.repository.UserRepository;
@@ -26,11 +27,12 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final ApplicationServiceClient applicationServiceClient;
+    private final AssignmentServiceClient assignmentServiceClient;
 
-    public UserService(UserRepository userRepository,
-                       ApplicationServiceClient applicationServiceClient) {
+    public UserService(UserRepository userRepository, ApplicationServiceClient applicationServiceClient, AssignmentServiceClient assignmentServiceClient) {
         this.userRepository = userRepository;
         this.applicationServiceClient = applicationServiceClient;
+        this.assignmentServiceClient = assignmentServiceClient;
     }
 
     @Transactional
@@ -119,9 +121,9 @@ public class UserService {
                 .then(userRepository.findById(userId))
                 .switchIfEmpty(Mono.error(new NotFoundException("User not found: " + userId)))
                 .flatMap(user -> {
-                    log.info("Deleting user {} and their applications", userId);
+                    log.info("Deleting user {} and their data from related services", userId);
 
-                    // Обертываем Feign вызов в Mono.fromCallable
+                    // Удаляем заявки
                     return Mono.fromCallable(() ->
                                     applicationServiceClient.deleteApplicationsByUserId(userId.toString())
                             )
@@ -132,6 +134,18 @@ public class UserService {
                                 log.warn("Continuing user deletion despite application service error");
                                 return Mono.empty();
                             })
+                            // Затем удаляем назначения
+                            .then(Mono.fromCallable(() ->
+                                            assignmentServiceClient.deleteAssignmentsByUserId(userId)
+                                    )
+                                    .subscribeOn(Schedulers.boundedElastic())
+                                    .doOnError(e -> log.error("Failed to delete assignments for user {}: {}",
+                                            userId, e.getMessage()))
+                                    .onErrorResume(e -> {
+                                        log.warn("Continuing user deletion despite assignment service error");
+                                        return Mono.empty();
+                                    }))
+                            // Затем удаляем пользователя
                             .then(userRepository.delete(user))
                             .doOnSuccess(v -> log.info("User deleted successfully: {}", userId));
                 });
