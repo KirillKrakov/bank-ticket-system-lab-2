@@ -214,6 +214,7 @@ services:
       - "5437:5432"
     volumes:
       - pgdata-tag:/var/lib/postgresql/data
+      - ./tag-service/src/main/resources/db/changelog:/docker-entrypoint-initdb.d:ro
     networks:
       - bank-network
     healthcheck:
