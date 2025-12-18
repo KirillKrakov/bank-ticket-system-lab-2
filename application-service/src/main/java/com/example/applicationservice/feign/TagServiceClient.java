@@ -1,25 +1,27 @@
 package com.example.applicationservice.feign;
 
+import com.example.applicationservice.config.FeignClientConfig;
 import com.example.applicationservice.dto.TagDto;
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
 
 @FeignClient(
         name = "tag-service",
-        fallback = TagServiceClientFallback.class
+        fallback = TagServiceClientFallback.class,
+        configuration = FeignClientConfig.class
 )
 public interface TagServiceClient {
 
-    @PostMapping("/api/v1/tags/batch")
-    Mono<List<TagDto>> createOrGetTagsBatch(@RequestBody List<String> tagNames);
-
-    @GetMapping("/api/v1/tags/{name}/exists")
-    Mono<Boolean> tagExists(@PathVariable String name);
-
-    @PostMapping("/api/v1/tags")
-    Mono<TagDto> createTag(@RequestBody String name);
+    @PostMapping(
+            value = "/api/v1/tags/batch",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    List<TagDto> createOrGetTagsBatch(@RequestBody List<String> tagNames);
 }

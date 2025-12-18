@@ -1,5 +1,6 @@
 package com.example.assignmentservice.feign;
 
+import com.example.assignmentservice.model.enums.UserRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -18,8 +19,8 @@ public class UserServiceClientFallback implements UserServiceClient {
     }
 
     @Override
-    public String getUserRole(UUID userId) {
+    public UserRole getUserRole(UUID userId) {
         logger.warn("Fallback: user-service unavailable, returning default role CLIENT for user {}", userId);
-        return "ROLE_CLIENT";
+        return UserRole.ROLE_CLIENT;
     }
 }

@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -120,7 +121,11 @@ public class UserService {
                 .flatMap(user -> {
                     log.info("Deleting user {} and their applications", userId);
 
-                    return applicationServiceClient.deleteApplicationsByUserId(userId.toString())
+                    // Обертываем Feign вызов в Mono.fromCallable
+                    return Mono.fromCallable(() ->
+                                    applicationServiceClient.deleteApplicationsByUserId(userId.toString())
+                            )
+                            .subscribeOn(Schedulers.boundedElastic())
                             .doOnError(e -> log.error("Failed to delete applications for user {}: {}",
                                     userId, e.getMessage()))
                             .onErrorResume(e -> {

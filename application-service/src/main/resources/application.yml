@@ -14,6 +14,8 @@ spring:
       ddl-auto: validate
     properties:
       hibernate:
+        enable_lazy_load_no_trans: false
+        max_fetch_depth: 3
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: false
@@ -28,6 +30,8 @@ spring:
     init:
       mode: always
       schema-locations: classpath:schema.sql
+  main:
+    allow-bean-definition-overriding: true
 
 eureka:
   client:
@@ -72,8 +76,14 @@ feign:
         connect-timeout: 5000
         read-timeout: 5000
         logger-level: basic
+        encoder: feign.jackson.JacksonEncoder
+        decoder: feign.jackson.JacksonDecoder
+        request-interceptors:
+          - com.example.applicationservice.config.FeignClientConfig
   circuitbreaker:
     enabled: true
+  okhttp:
+    enabled: false
 
 springdoc:
   api-docs:

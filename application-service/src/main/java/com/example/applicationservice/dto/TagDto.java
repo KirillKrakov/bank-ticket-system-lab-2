@@ -1,28 +1,22 @@
 package com.example.applicationservice.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import jakarta.validation.constraints.NotBlank;
-
 import java.util.List;
 import java.util.UUID;
 
 public class TagDto {
     private UUID id;
-
-    @NotBlank(message = "Tag name is required")
     private String name;
+    private List<ApplicationInfoDto> applications;
 
-
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    private List<ApplicationDto> applications;
-
+    // Геттеры и сеттеры
     public UUID getId() { return id; }
-    public String getName() { return name; }
-
     public void setId(UUID id) { this.id = id; }
+
+    public String getName() { return name; }
     public void setName(String name) { this.name = name; }
-    public List<ApplicationDto> getApplications() { return applications; }
-    public void setApplications(List<ApplicationDto> applications) {
+
+    public List<ApplicationInfoDto> getApplications() { return applications; }
+    public void setApplications(List<ApplicationInfoDto> applications) {
         this.applications = applications;
     }
 }

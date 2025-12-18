@@ -16,25 +16,8 @@ public class TagServiceClientFallback implements TagServiceClient {
     private static final Logger log = LoggerFactory.getLogger(TagServiceClientFallback.class);
 
     @Override
-    public Mono<List<TagDto>> createOrGetTagsBatch(List<String> tagNames) {
+    public List<TagDto> createOrGetTagsBatch(List<String> tagNames) {
         log.warn("Fallback: Cannot create/get tags batch: {}", tagNames);
-        // Возвращаем пустой список, приложение будет работать без тегов
-        return Mono.just(Collections.emptyList());
-    }
-
-    @Override
-    public Mono<Boolean> tagExists(String name) {
-        log.warn("Fallback: Cannot check if tag exists: {}", name);
-        return Mono.just(false);
-    }
-
-    @Override
-    public Mono<TagDto> createTag(String name) {
-        log.warn("Fallback: Cannot create tag: {}", name);
-        // Создаём заглушку
-        TagDto dto = new TagDto();
-        dto.setId(UUID.randomUUID());
-        dto.setName(name);
-        return Mono.just(dto);
+        return Collections.emptyList();
     }
 }

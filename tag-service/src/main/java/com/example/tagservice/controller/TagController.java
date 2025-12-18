@@ -1,7 +1,13 @@
 package com.example.tagservice.controller;
 
+import com.example.tagservice.dto.ApplicationInfoDto;
 import com.example.tagservice.dto.TagDto;
+import com.example.tagservice.feign.ApplicationServiceClient;
 import com.example.tagservice.service.TagService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +22,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Tag(name = "Tags", description = "API for managing tags")
 @RestController
 @RequestMapping("/api/v1/tags")
 public class TagController {
@@ -28,6 +35,10 @@ public class TagController {
         this.tagService = tagService;
     }
 
+    @Operation(summary = "Create a new  unique tag", description = "Registers a new tag: name if it has not already existed")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Tag created or found successfully")
+    })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<TagDto> createTag(
@@ -49,6 +60,44 @@ public class TagController {
         return ResponseEntity.created(location).body(dto);
     }
 
+    @Operation(summary = "Read all tags", description = "Returns list of tags")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "List of applications"),
+            @ApiResponse(responseCode = "400", description = "Page size too large")
+    })
+    @GetMapping
+    public ResponseEntity<List<TagDto>> listTags(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        if (size > MAX_PAGE_SIZE) {
+            throw new IllegalArgumentException(
+                    String.format("Page size cannot be greater than %d", MAX_PAGE_SIZE));
+        }
+
+        Page<TagDto> tagPage = tagService.listAll(page, size);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("X-Total-Count", String.valueOf(tagPage.getTotalElements()));
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(tagPage.getContent());
+    }
+
+    @Operation(summary = "Read certain tag by its name", description = "Returns data about a single tag: name and list of applications that uses this tag")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Data about a single tag"),
+            @ApiResponse(responseCode = "404", description = "Tag with this name is not found")
+    })
+    @GetMapping("/{name}")
+    public ResponseEntity<TagDto> getTagWithApplications(@PathVariable String name) {
+        TagDto response = tagService.getTagByName(name);
+        log.info("Returning tag {} with {} applications", name, response.getApplications().size());
+        return ResponseEntity.ok(response);
+    }
+
+    // internal-запрос для application-service
     @PostMapping("/batch")
     @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<List<TagDto>> createOrGetTagsBatch(
@@ -72,44 +121,5 @@ public class TagController {
 
         log.info("Processed batch of {} tags", dtos.size());
         return ResponseEntity.ok(dtos);
-    }
-
-    @GetMapping
-    public ResponseEntity<List<TagDto>> listTags(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-
-        if (size > MAX_PAGE_SIZE) {
-            throw new IllegalArgumentException(
-                    String.format("Page size cannot be greater than %d", MAX_PAGE_SIZE));
-        }
-
-        Page<TagDto> tagPage = tagService.listAll(page, size);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.add("X-Total-Count", String.valueOf(tagPage.getTotalElements()));
-
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(tagPage.getContent());
-    }
-
-    @GetMapping("/{name}")
-    public ResponseEntity<TagDto> getTagByName(@PathVariable String name) {
-        TagDto tag = tagService.getTagByName(name);
-        return ResponseEntity.ok(tag);
-    }
-
-    @GetMapping("/{name}/exists")
-    public ResponseEntity<Boolean> tagExists(@PathVariable String name) {
-        boolean exists = tagService.tagExists(name);
-        return ResponseEntity.ok(exists);
-    }
-
-    // Внутренний endpoint для других сервисов
-    @PostMapping("/internal/batch")
-    public ResponseEntity<List<TagDto>> getTagsBatch(@RequestBody List<String> names) {
-        List<TagDto> tags = tagService.getTagsByNames(names);
-        return ResponseEntity.ok(tags);
     }
 }

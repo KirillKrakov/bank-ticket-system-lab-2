@@ -5,6 +5,7 @@ import com.example.userservice.dto.UserRequest;
 import com.example.userservice.model.entity.User;
 import com.example.userservice.model.enums.UserRole;
 import com.example.userservice.service.UserService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +15,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
+@Tag(name = "Users", description = "API for managing users")
 @RestController
 @RequestMapping("/api/v1/users")
 public class UserController {

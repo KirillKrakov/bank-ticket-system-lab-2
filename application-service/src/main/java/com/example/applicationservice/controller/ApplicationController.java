@@ -2,6 +2,7 @@ package com.example.applicationservice.controller;
 
 import com.example.applicationservice.dto.*;
 import com.example.applicationservice.exception.BadRequestException;
+import com.example.applicationservice.model.entity.Application;
 import com.example.applicationservice.service.ApplicationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -19,6 +20,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Tag(name = "Applications", description = "API for managing applications")
 @RestController
@@ -341,6 +343,30 @@ public class ApplicationController {
                 .then(Mono.just(ResponseEntity.noContent().<Void>build()))
                 .onErrorResume(e -> {
                     log.error("Failed to delete applications for product {}: {}", productId, e.getMessage());
+                    return Mono.just(ResponseEntity.internalServerError().build());
+                });
+    }
+
+    // Internal endpoint для tag-service
+    @Operation(summary = "Get applications by tag", description = "Returns all applications with specified tag")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "List of applications with the tag"),
+            @ApiResponse(responseCode = "400", description = "Invalid tag name")
+    })
+    @GetMapping("/by-tag")
+    public Mono<ResponseEntity<List<ApplicationInfoDto>>> getApplicationsByTag(
+            @RequestParam("tag") String tagName) {
+
+        log.debug("Getting applications with tag: {}", tagName);
+
+        return applicationService.findApplicationsByTag(tagName)
+                .map(ResponseEntity::ok)
+                .onErrorResume(e -> {
+                    if (e instanceof BadRequestException) {
+                        log.error("Bad request for tag {}: {}", tagName, e.getMessage());
+                        return Mono.just(ResponseEntity.badRequest().build());
+                    }
+                    log.error("Internal error for tag {}: {}", tagName, e.getMessage());
                     return Mono.just(ResponseEntity.internalServerError().build());
                 });
     }

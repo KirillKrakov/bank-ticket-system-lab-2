@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 
@@ -15,20 +16,20 @@ public class UserServiceClientFallback implements UserServiceClient {
     private static final Logger log = LoggerFactory.getLogger(UserServiceClientFallback.class);
 
     @Override
-    public Mono<Boolean> userExists(UUID id) {
+    public Boolean userExists(UUID id) {
         log.warn("Fallback: Cannot check if user exists: {}", id);
-        return Mono.just(false);
+        return false;
     }
 
     @Override
-    public Mono<Map<String, Object>> getUserById(UUID id) {
+    public Map<String, Object> getUserById(UUID id) {
         log.warn("Fallback: Cannot get user: {}", id);
-        return Mono.empty();
+        return Collections.emptyMap();
     }
 
     @Override
-    public Mono<UserRole> getUserRole(UUID id) {
+    public UserRole getUserRole(UUID id) {
         log.warn("Fallback: Cannot get user role: {}", id);
-        return Mono.just(UserRole.ROLE_CLIENT);
+        return UserRole.ROLE_CLIENT;
     }
 }
