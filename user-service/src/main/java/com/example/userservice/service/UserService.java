@@ -173,7 +173,7 @@ public class UserService {
         return userRepository.count();
     }
 
-    private Mono<User> validateAdmin(UUID actorId) {
+    public Mono<User> validateAdmin(UUID actorId) {
         if (actorId == null) {
             return Mono.error(new UnauthorizedException("Actor ID is required"));
         }
