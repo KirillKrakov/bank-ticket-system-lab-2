@@ -8,7 +8,7 @@ import java.util.UUID;
 
 @FeignClient(
         name = "assignment-service",
-        fallback = AssignmentServiceClientFallback.class
+        fallbackFactory = AssignmentServiceClientFallbackFactory.class
 )
 public interface AssignmentServiceClient {
 

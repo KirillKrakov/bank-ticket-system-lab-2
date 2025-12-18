@@ -9,7 +9,7 @@ import java.util.UUID;
 
 @FeignClient(
         name = "user-service",
-        fallback = UserServiceClientFallback.class
+        fallbackFactory = UserServiceClientFallbackFactory.class
 )
 public interface UserServiceClient {
 

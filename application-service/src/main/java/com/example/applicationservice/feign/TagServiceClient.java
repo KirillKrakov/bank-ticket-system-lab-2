@@ -4,8 +4,6 @@ import com.example.applicationservice.config.FeignClientConfig;
 import com.example.applicationservice.dto.TagDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -13,7 +11,7 @@ import java.util.List;
 
 @FeignClient(
         name = "tag-service",
-        fallback = TagServiceClientFallback.class,
+        fallbackFactory = TagServiceClientFallbackFactory.class,
         configuration = FeignClientConfig.class
 )
 public interface TagServiceClient {
