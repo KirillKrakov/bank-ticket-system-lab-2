@@ -2,6 +2,7 @@ package com.example.tagservice.controller;
 
 import com.example.tagservice.dto.TagDto;
 import com.example.tagservice.service.TagService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Tag(name = "Tags", description = "API for managing tags")
 @RestController
 @RequestMapping("/api/v1/tags")
 public class TagController {

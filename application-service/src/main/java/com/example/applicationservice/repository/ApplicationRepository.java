@@ -25,6 +25,8 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
     @Query("SELECT a.id FROM Application a WHERE a.productId = :productId")
     List<UUID> findIdsByProductId(@Param("productId") UUID productId);
 
+    @Query("SELECT DISTINCT a FROM Application a LEFT JOIN FETCH a.tags WHERE a.id = :id")
+    Optional<Application> findByIdWithTags(@Param("id") UUID id);
 
     @Modifying
     @Transactional

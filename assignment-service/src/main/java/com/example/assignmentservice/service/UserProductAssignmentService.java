@@ -162,7 +162,7 @@ public class UserProductAssignmentService {
     private void checkAdminRights(UUID actorId) {
         try {
             UserRole actorRole = userServiceClient.getUserRole(actorId);
-            if (actorRole == UserRole.ROLE_ADMIN) {
+            if (actorRole != UserRole.ROLE_ADMIN) {
                 throw new ForbiddenException("Only ADMIN can delete assignments");
             }
         } catch (FeignException.NotFound e) {
