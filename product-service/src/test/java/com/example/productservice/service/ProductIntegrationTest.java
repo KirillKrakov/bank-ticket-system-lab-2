@@ -1,4 +1,4 @@
-package com.example.productservice.integration;
+package com.example.productservice.service;
 
 import com.example.productservice.ProductServiceApplication;
 import com.example.productservice.dto.ProductDto;

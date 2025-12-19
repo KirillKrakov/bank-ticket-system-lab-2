@@ -1,4 +1,4 @@
-package com.example.assignmentservice.integration;
+package com.example.assignmentservice.service;
 
 import com.example.assignmentservice.AssignmentServiceApplication;
 import com.example.assignmentservice.dto.UserProductAssignmentDto;
