@@ -11,7 +11,7 @@ spring:
         enabled: true
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: validate  # ИЛИ none для production
     properties:
       hibernate:
         enable_lazy_load_no_trans: false
