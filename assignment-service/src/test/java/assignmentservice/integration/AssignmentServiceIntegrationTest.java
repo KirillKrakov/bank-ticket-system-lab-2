@@ -4,7 +4,9 @@ import com.example.assignmentservice.AssignmentServiceApplication;
 import com.example.assignmentservice.dto.UserProductAssignmentDto;
 import com.example.assignmentservice.model.entity.UserProductAssignment;
 import com.example.assignmentservice.model.enums.AssignmentRole;
+import com.example.assignmentservice.model.enums.UserRole;
 import com.example.assignmentservice.repository.UserProductAssignmentRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +14,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
 import org.springframework.http.*;
-import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -28,8 +29,10 @@ import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Testcontainers
-@SpringBootTest(classes = AssignmentServiceApplication.class,
-        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+        classes = AssignmentServiceApplication.class,
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
+)
 @AutoConfigureWireMock(port = 0)
 public class AssignmentServiceIntegrationTest {
 
@@ -39,15 +42,16 @@ public class AssignmentServiceIntegrationTest {
             .withUsername("postgres")
             .withPassword("postgres");
 
+    private static int wireMockPort;
+
     @DynamicPropertySource
     static void props(DynamicPropertyRegistry r) {
         r.add("spring.datasource.url", postgres::getJdbcUrl);
         r.add("spring.datasource.username", postgres::getUsername);
         r.add("spring.datasource.password", postgres::getPassword);
 
-        // Настраиваем URL для WireMock серверов
-        r.add("user-service.url", () -> "http://localhost:${wiremock.server.port}");
-        r.add("product-service.url", () -> "http://localhost:${wiremock.server.port}");
+        // Указываем явно порт WireMock
+        r.add("wiremock.server.port", () -> wireMockPort);
     }
 
     @Autowired
@@ -56,9 +60,13 @@ public class AssignmentServiceIntegrationTest {
     @Autowired
     private UserProductAssignmentRepository assignmentRepository;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @BeforeEach
     void cleanDb() {
         assignmentRepository.deleteAll();
+        wireMockPort = Integer.parseInt(System.getProperty("wiremock.server.port", "8080"));
     }
 
     // Основной тест полного жизненного цикла
@@ -70,31 +78,30 @@ public class AssignmentServiceIntegrationTest {
         UUID productId = UUID.randomUUID();
 
         // Настраиваем WireMock для user-service
-        stubFor(get(urlPathMatching("/api/users/" + actorId + "/role"))
+        stubFor(get(urlPathEqualTo("/api/users/" + actorId + "/role"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
-                        .withBody("\"ROLE_ADMIN\"")));
+                        .withBody("\"" + UserRole.ROLE_ADMIN + "\"")));
 
-        stubFor(get(urlPathMatching("/api/users/" + userId + "/exists"))
+        stubFor(get(urlPathEqualTo("/api/users/" + userId + "/exists"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
                         .withBody("true")));
 
         // Настраиваем WireMock для product-service
-        stubFor(get(urlPathMatching("/api/products/" + productId + "/exists"))
+        stubFor(get(urlPathEqualTo("/api/products/" + productId + "/exists"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
                         .withBody("true")));
 
         // Создаем запрос на назначение
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
         String requestBody = String.format(
                 "{\"userId\":\"%s\",\"productId\":\"%s\",\"role\":\"PRODUCT_OWNER\"}",
                 userId, productId
         );
 
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
 
         // Act 1: Создаем назначение
@@ -244,25 +251,37 @@ public class AssignmentServiceIntegrationTest {
         UUID productId = UUID.randomUUID();
 
         // Настраиваем WireMock - актор не админ и не владелец
-        stubFor(get(urlPathMatching("/api/users/" + actorId + "/role"))
+        stubFor(get(urlPathEqualTo("/api/users/" + actorId + "/role"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
-                        .withBody("\"ROLE_CLIENT\"")));
+                        .withBody("\"" + UserRole.ROLE_CLIENT + "\"")));
 
-        // Настраиваем, что актор не является владельцем продукта
-        stubFor(get(urlPathMatching("/api/users/" + actorId + "/exists"))
+        // Актор существует
+        stubFor(get(urlPathEqualTo("/api/users/" + actorId + "/exists"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
                         .withBody("true")));
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        // Целевой пользователь существует
+        stubFor(get(urlPathEqualTo("/api/users/" + userId + "/exists"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("true")));
 
+        // Продукт существует
+        stubFor(get(urlPathEqualTo("/api/products/" + productId + "/exists"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("true")));
+
+        // Создаем запрос на назначение
         String requestBody = String.format(
                 "{\"userId\":\"%s\",\"productId\":\"%s\",\"role\":\"PRODUCT_OWNER\"}",
                 userId, productId
         );
 
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
 
         // Act
@@ -285,25 +304,25 @@ public class AssignmentServiceIntegrationTest {
         UUID productId = UUID.randomUUID();
 
         // Актор - админ
-        stubFor(get(urlPathMatching("/api/users/" + actorId + "/role"))
+        stubFor(get(urlPathEqualTo("/api/users/" + actorId + "/role"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
-                        .withBody("\"ROLE_ADMIN\"")));
+                        .withBody("\"" + UserRole.ROLE_ADMIN + "\"")));
 
         // Пользователь не существует
-        stubFor(get(urlPathMatching("/api/users/" + userId + "/exists"))
+        stubFor(get(urlPathEqualTo("/api/users/" + userId + "/exists"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
                         .withBody("false")));
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
+        // Создаем запрос на назначение
         String requestBody = String.format(
                 "{\"userId\":\"%s\",\"productId\":\"%s\",\"role\":\"PRODUCT_OWNER\"}",
                 userId, productId
         );
 
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
 
         // Act
@@ -326,31 +345,31 @@ public class AssignmentServiceIntegrationTest {
         UUID productId = UUID.randomUUID();
 
         // Актор - админ
-        stubFor(get(urlPathMatching("/api/users/" + actorId + "/role"))
+        stubFor(get(urlPathEqualTo("/api/users/" + actorId + "/role"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
-                        .withBody("\"ROLE_ADMIN\"")));
+                        .withBody("\"" + UserRole.ROLE_ADMIN + "\"")));
 
         // Пользователь существует
-        stubFor(get(urlPathMatching("/api/users/" + userId + "/exists"))
+        stubFor(get(urlPathEqualTo("/api/users/" + userId + "/exists"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
                         .withBody("true")));
 
         // Продукт не существует
-        stubFor(get(urlPathMatching("/api/products/" + productId + "/exists"))
+        stubFor(get(urlPathEqualTo("/api/products/" + productId + "/exists"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
                         .withBody("false")));
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
+        // Создаем запрос на назначение
         String requestBody = String.format(
                 "{\"userId\":\"%s\",\"productId\":\"%s\",\"role\":\"PRODUCT_OWNER\"}",
                 userId, productId
         );
 
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
 
         // Act
@@ -374,12 +393,13 @@ public class AssignmentServiceIntegrationTest {
         UUID productId2 = UUID.randomUUID();
 
         // Актор - админ
-        stubFor(get(urlPathMatching("/api/users/" + actorId + "/role"))
+        stubFor(get(urlPathEqualTo("/api/users/" + actorId + "/role"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
-                        .withBody("\"ROLE_ADMIN\"")));
+                        .withBody("\"" + UserRole.ROLE_ADMIN + "\"")));
 
-        stubFor(get(urlPathMatching("/api/users/" + userId + "/exists"))
+        // Пользователь существует
+        stubFor(get(urlPathEqualTo("/api/users/" + userId + "/exists"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
                         .withBody("true")));
@@ -427,12 +447,13 @@ public class AssignmentServiceIntegrationTest {
         UUID productId = UUID.randomUUID();
 
         // Актор - админ
-        stubFor(get(urlPathMatching("/api/users/" + actorId + "/role"))
+        stubFor(get(urlPathEqualTo("/api/users/" + actorId + "/role"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
-                        .withBody("\"ROLE_ADMIN\"")));
+                        .withBody("\"" + UserRole.ROLE_ADMIN + "\"")));
 
-        stubFor(get(urlPathMatching("/api/products/" + productId + "/exists"))
+        // Продукт существует
+        stubFor(get(urlPathEqualTo("/api/products/" + productId + "/exists"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
                         .withBody("true")));
@@ -479,24 +500,19 @@ public class AssignmentServiceIntegrationTest {
         UUID productId = UUID.randomUUID();
 
         // Актор - обычный пользователь
-        stubFor(get(urlPathMatching("/api/users/" + actorId + "/role"))
+        stubFor(get(urlPathEqualTo("/api/users/" + actorId + "/role"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
-                        .withBody("\"ROLE_CLIENT\"")));
+                        .withBody("\"" + UserRole.ROLE_CLIENT + "\"")));
 
-        // Актор и целевой пользователь существуют
-        stubFor(get(urlPathMatching("/api/users/" + actorId + "/exists"))
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("true")));
-
-        stubFor(get(urlPathMatching("/api/users/" + userId + "/exists"))
+        // Целевой пользователь существует
+        stubFor(get(urlPathEqualTo("/api/users/" + userId + "/exists"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
                         .withBody("true")));
 
         // Продукт существует
-        stubFor(get(urlPathMatching("/api/products/" + productId + "/exists"))
+        stubFor(get(urlPathEqualTo("/api/products/" + productId + "/exists"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
                         .withBody("true")));
@@ -510,14 +526,14 @@ public class AssignmentServiceIntegrationTest {
         actorAssignment.setAssignedAt(Instant.now());
         assignmentRepository.save(actorAssignment);
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
+        // Создаем запрос на назначение
         String requestBody = String.format(
                 "{\"userId\":\"%s\",\"productId\":\"%s\",\"role\":\"RESELLER\"}",
                 userId, productId
         );
 
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
 
         // Act
@@ -544,19 +560,19 @@ public class AssignmentServiceIntegrationTest {
         UUID productId = UUID.randomUUID();
 
         // User service возвращает ошибку 503
-        stubFor(get(urlPathMatching("/api/users/" + actorId + "/role"))
+        stubFor(get(urlPathEqualTo("/api/users/" + actorId + "/role"))
                 .willReturn(aResponse()
                         .withStatus(503)
                         .withFixedDelay(100)));
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
+        // Создаем запрос на назначение
         String requestBody = String.format(
                 "{\"userId\":\"%s\",\"productId\":\"%s\",\"role\":\"PRODUCT_OWNER\"}",
                 userId, productId
         );
 
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
 
         // Act
@@ -587,5 +603,68 @@ public class AssignmentServiceIntegrationTest {
 
         // Assert
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+    }
+
+    // Дополнительный тест на проверку, что владелец может обновлять назначение
+    @Test
+    void assign_updatesExistingAssignment_whenAssignmentExists() {
+        // Arrange
+        UUID actorId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+
+        // Актор - админ
+        stubFor(get(urlPathEqualTo("/api/users/" + actorId + "/role"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("\"" + UserRole.ROLE_ADMIN + "\"")));
+
+        stubFor(get(urlPathEqualTo("/api/users/" + userId + "/exists"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("true")));
+
+        stubFor(get(urlPathEqualTo("/api/products/" + productId + "/exists"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("true")));
+
+        // Создаем существующее назначение
+        UserProductAssignment existingAssignment = new UserProductAssignment();
+        existingAssignment.setId(UUID.randomUUID());
+        existingAssignment.setUserId(userId);
+        existingAssignment.setProductId(productId);
+        existingAssignment.setRoleOnProduct(AssignmentRole.RESELLER);
+        existingAssignment.setAssignedAt(Instant.now().minusSeconds(3600));
+        assignmentRepository.save(existingAssignment);
+
+        // Создаем запрос на обновление роли
+        String requestBody = String.format(
+                "{\"userId\":\"%s\",\"productId\":\"%s\",\"role\":\"PRODUCT_OWNER\"}",
+                userId, productId
+        );
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
+
+        // Act
+        ResponseEntity<UserProductAssignmentDto> response = restTemplate.postForEntity(
+                "/api/assignments?actorId=" + actorId,
+                request,
+                UserProductAssignmentDto.class
+        );
+
+        // Assert
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(existingAssignment.getId(), response.getBody().getId()); // Тот же ID
+        assertEquals(AssignmentRole.PRODUCT_OWNER, response.getBody().getRole()); // Новая роль
+
+        // Проверяем, что в БД только одна запись
+        List<UserProductAssignment> assignments = assignmentRepository.findAll();
+        assertEquals(1, assignments.size());
+        assertEquals(existingAssignment.getId(), assignments.get(0).getId());
+        assertEquals(AssignmentRole.PRODUCT_OWNER, assignments.get(0).getRoleOnProduct());
     }
 }
