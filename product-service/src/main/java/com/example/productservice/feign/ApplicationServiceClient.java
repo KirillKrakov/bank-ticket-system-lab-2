@@ -8,10 +8,10 @@ import java.util.UUID;
 
 @FeignClient(
         name = "application-service",
-        fallback = ApplicationServiceClientFallback.class
+        fallbackFactory = ApplicationServiceClientFallbackFactory.class
 )
 public interface ApplicationServiceClient {
 
     @DeleteMapping("/api/v1/applications/internal/by-product")
-    void deleteApplicationsByProductId(@RequestParam("productId") UUID productId);
+    Void deleteApplicationsByProductId(@RequestParam("productId") UUID productId);
 }

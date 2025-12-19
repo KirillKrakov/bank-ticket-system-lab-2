@@ -7,7 +7,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
-@FeignClient(name = "application-service", fallback = ApplicationServiceClientFallback.class)
+@FeignClient(
+        name = "application-service",
+        fallbackFactory = ApplicationServiceClientFallbackFactory.class
+)
 public interface ApplicationServiceClient {
 
     @GetMapping("/api/v1/applications/by-tag")

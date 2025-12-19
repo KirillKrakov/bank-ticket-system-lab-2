@@ -6,9 +6,9 @@ spring:
   cloud:
     discovery:
       enabled: true
-      client:
-        composite:
-          enabled: true
+    openfeign:
+      circuitbreaker:
+        enabled: true
   jpa:
     hibernate:
       ddl-auto: validate  # ИЛИ none для production
@@ -28,49 +28,47 @@ spring:
       minimum-idle: 5
   liquibase:
     enabled: true
-    change-log: classpath:/db/changelog/changelog-master.yaml
-    default-schema: public
-    drop-first: false
-    contexts: dev
-  sql:
-    init:
-      mode: never
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  main:
+    allow-bean-definition-overriding: true
 
 eureka:
   client:
-    enabled: true
     service-url:
       defaultZone: http://localhost:8761/eureka
-    fetch-registry: true
-    register-with-eureka: true
   instance:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${server.port}
 
 resilience4j:
   circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
     instances:
-      userService:
-        sliding-window-size: 10
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 5000
-        permitted-number-of-calls-in-half-open-state: 3
-        automatic-transition-from-open-to-half-open-enabled: true
-        minimum-number-of-calls: 5
-      productService:
-        sliding-window-size: 10
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 5000
-        permitted-number-of-calls-in-half-open-state: 3
-        automatic-transition-from-open-to-half-open-enabled: true
-        minimum-number-of-calls: 5
-      tagService:
-        sliding-window-size: 10
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 5000
-        permitted-number-of-calls-in-half-open-state: 3
-        automatic-transition-from-open-to-half-open-enabled: true
-        minimum-number-of-calls: 5
+      user-service:
+        baseConfig: default
+      product-service:
+        baseConfig: default
+      tag-service:
+        baseConfig: default
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 2s
+    instances:
+      user-service:
+        baseConfig: default
+      product-service:
+        baseConfig: default
+      tag-service:
+        baseConfig: default
 
 feign:
   client:
@@ -83,10 +81,6 @@ feign:
         decoder: feign.jackson.JacksonDecoder
         request-interceptors:
           - com.example.applicationservice.config.FeignClientConfig
-  circuitbreaker:
-    enabled: true
-  okhttp:
-    enabled: false
 
 springdoc:
   api-docs:

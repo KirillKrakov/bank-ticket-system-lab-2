@@ -6,9 +6,9 @@ spring:
   cloud:
     discovery:
       enabled: true
-      client:
-        composite:
-          enabled: true
+    openfeign:
+      circuitbreaker:
+        enabled: true
   jpa:
     hibernate:
       ddl-auto: validate
@@ -17,6 +17,9 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: false
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
   datasource:
     url: ${ASSIGNMENT_DB_URL:jdbc:postgresql://localhost:5435/assignmentdb}
     username: ${ASSIGNMENT_DB_USER:postgres}
@@ -37,32 +40,37 @@ spring:
 
 eureka:
   client:
-    enabled: true
     service-url:
       defaultZone: http://localhost:8761/eureka
-    fetch-registry: true
-    register-with-eureka: true
   instance:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${server.port}
 
 resilience4j:
   circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
     instances:
-      userService:
-        sliding-window-size: 10
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 5000
-        permitted-number-of-calls-in-half-open-state: 3
-        automatic-transition-from-open-to-half-open-enabled: true
-        minimum-number-of-calls: 5
-      productService:
-        sliding-window-size: 10
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 5000
-        permitted-number-of-calls-in-half-open-state: 3
-        automatic-transition-from-open-to-half-open-enabled: true
-        minimum-number-of-calls: 5
+      user-service:
+        baseConfig: default
+      product-service:
+        baseConfig: default
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 2s
+    instances:
+      user-service:
+        baseConfig: default
+      product-service:
+        baseConfig: default
 
 feign:
   client:
@@ -70,8 +78,6 @@ feign:
       default:
         connect-timeout: 5000
         read-timeout: 5000
-  circuitbreaker:
-    enabled: true
 
 springdoc:
   api-docs:

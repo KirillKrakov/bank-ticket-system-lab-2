@@ -6,9 +6,9 @@ spring:
   cloud:
     discovery:
       enabled: true
-      client:
-        composite:
-          enabled: true
+    openfeign:
+      circuitbreaker:
+        enabled: true
   jpa:
     hibernate:
       ddl-auto: validate
@@ -17,6 +17,9 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: false
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
   datasource:
     url: ${TAG_DB_URL:jdbc:postgresql://localhost:5437/tagdb}
     username: ${TAG_DB_USER:postgres}
@@ -40,11 +43,8 @@ spring:
 
 eureka:
   client:
-    enabled: true
     service-url:
       defaultZone: http://localhost:8761/eureka
-    fetch-registry: true
-    register-with-eureka: true
   instance:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${server.port}
@@ -56,21 +56,28 @@ feign:
         connect-timeout: 5000
         read-timeout: 5000
         logger-level: basic
-  circuitbreaker:
-    enabled: true
-  okhttp:
-    enabled: false
 
 resilience4j:
   circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
     instances:
       application-service:
-        sliding-window-size: 10
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 5000
-        permitted-number-of-calls-in-half-open-state: 3
-        automatic-transition-from-open-to-half-open-enabled: true
-        minimum-number-of-calls: 5
+        baseConfig: default
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 2s
+    instances:
+      application-service:
+        baseConfig: default
 
 springdoc:
   api-docs:
