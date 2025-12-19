@@ -1,4 +1,4 @@
-package assignmentservice.service;
+package com.example.assignmentservice.service;
 
 import com.example.assignmentservice.dto.UserProductAssignmentDto;
 import com.example.assignmentservice.exception.ForbiddenException;

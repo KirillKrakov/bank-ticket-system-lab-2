@@ -1,4 +1,4 @@
-package tagservice.service;
+package com.example.tagservice.service;
 
 import com.example.tagservice.dto.ApplicationInfoDto;
 import com.example.tagservice.dto.TagDto;
