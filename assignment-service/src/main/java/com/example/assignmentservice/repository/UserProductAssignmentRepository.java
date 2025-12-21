@@ -21,6 +21,7 @@ public interface UserProductAssignmentRepository extends JpaRepository<UserProdu
     Optional<UserProductAssignment> findByUserIdAndProductId(UUID userId, UUID productId);
 
     boolean existsByUserIdAndProductIdAndRoleOnProduct(UUID userId, UUID productId, AssignmentRole role);
+    boolean existsByUserIdAndProductId(UUID userId, UUID productId);
 
     @Modifying
     @Query("DELETE FROM UserProductAssignment a WHERE a.userId = :userId AND a.productId = :productId")
