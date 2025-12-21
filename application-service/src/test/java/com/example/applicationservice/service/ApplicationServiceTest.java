@@ -1,4 +1,4 @@
-package applicationservice.service;
+package com.example.applicationservice.service;
 
 import com.example.applicationservice.dto.*;
 import com.example.applicationservice.exception.*;
@@ -51,7 +51,6 @@ public class ApplicationServiceTest {
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        // Не нужно создавать экземпляр вручную, @InjectMocks сделает это
     }
 
     // -----------------------

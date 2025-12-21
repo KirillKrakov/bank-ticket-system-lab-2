@@ -28,16 +28,6 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 5
       connection-timeout: 30000
-  liquibase:
-    enabled: true
-    change-log: classpath:/db/changelog/changelog-master.yaml
-    default-schema: public
-    drop-first: false
-    contexts: ${LIQUIBASE_CONTEXTS:dev}
-    # Дополнительные настройки
-    liquibase-schema: public
-    database-change-log-table: DATABASECHANGELOG
-    database-change-log-lock-table: DATABASECHANGELOGLOCK
   sql:
     init:
       mode: never  # Отключаем SQL инициализацию
