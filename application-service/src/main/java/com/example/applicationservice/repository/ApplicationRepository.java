@@ -69,4 +69,8 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
 
     @Query("SELECT DISTINCT a FROM Application a LEFT JOIN FETCH a.tags t WHERE t = :tagName")
     List<Application> findByTag(@Param("tagName") String tagName);
+
+    long countByApplicantId(UUID applicantId);
+
+    long countByProductId(UUID productId);
 }
