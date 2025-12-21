@@ -2,8 +2,11 @@ services:
   # Инфраструктурные сервисы
   service-discovery:
     build:
-      context: ./service-discovery
+      context: .
       dockerfile: Dockerfile
+      args:
+        MODULE_PATH: service-discovery
+        JAR_NAME: service-discovery-1.0.0.jar
     ports:
       - "8761:8761"
     networks:
@@ -11,8 +14,11 @@ services:
 
   config-server:
     build:
-      context: ./config-server
+      context: .
       dockerfile: Dockerfile
+      args:
+        MODULE_PATH: config-server
+        JAR_NAME: config-server-1.0.0.jar
     ports:
       - "8888:8888"
     networks:
@@ -20,8 +26,11 @@ services:
 
   gateway:
     build:
-      context: ./gateway
+      context: .
       dockerfile: Dockerfile
+      args:
+        MODULE_PATH: gateway
+        JAR_NAME: gateway-1.0.0.jar
     ports:
       - "8080:8080"
     environment:
@@ -56,8 +65,11 @@ services:
 
   user-service:
     build:
-      context: ./user-service
+      context: .
       dockerfile: Dockerfile
+      args:
+        MODULE_PATH: user-service
+        JAR_NAME: user-service-1.0.0.jar
     ports:
       - "8081:8081"
     environment:
@@ -98,8 +110,11 @@ services:
 
   product-service:
     build:
-      context: ./product-service
+      context: .
       dockerfile: Dockerfile
+      args:
+        MODULE_PATH: product-service
+        JAR_NAME: product-service-1.0.0.jar
     ports:
       - "8082:8082"
     environment:
@@ -139,8 +154,11 @@ services:
 
   assignment-service:
     build:
-      context: ./assignment-service
+      context: .
       dockerfile: Dockerfile
+      args:
+        MODULE_PATH: assignment-service
+        JAR_NAME: assignment-service-1.0.0.jar
     ports:
       - "8084:8084"
     environment:
@@ -179,8 +197,11 @@ services:
 
   application-service:
     build:
-      context: ./application-service
+      context: .
       dockerfile: Dockerfile
+      args:
+        MODULE_PATH: application-service
+        JAR_NAME: application-service-1.0.0.jar
     ports:
       - "8083:8083"
     environment:
@@ -221,8 +242,11 @@ services:
 
   tag-service:
     build:
-      context: ./tag-service
+      context: .
       dockerfile: Dockerfile
+      args:
+        MODULE_PATH: tag-service
+        JAR_NAME: tag-service-1.0.0.jar
     ports:
       - "8085:8085"
     environment:
