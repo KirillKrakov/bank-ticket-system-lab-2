@@ -201,7 +201,7 @@ public class ApplicationServiceTest {
 
         StepVerifier.create(applicationService.findById(id))
                 .expectNextCount(0)
-                .verifyComplete();
+                .verifyError();
     }
 
     @Test
@@ -304,7 +304,7 @@ public class ApplicationServiceTest {
         when(applicationRepository.findByIdWithDocuments(applicationId)).thenReturn(Optional.empty());
 
         StepVerifier.create(applicationService.attachTags(applicationId, tags, actorId))
-                .expectError(ForbiddenException.class)
+                .expectError(NotFoundException.class)
                 .verify();
     }
 
@@ -375,7 +375,7 @@ public class ApplicationServiceTest {
         when(applicationRepository.findByIdWithDocuments(applicationId)).thenReturn(Optional.empty());
 
         StepVerifier.create(applicationService.removeTags(applicationId, tags, actorId))
-                .expectError(ForbiddenException.class)
+                .expectError(NotFoundException.class)
                 .verify();
     }
 

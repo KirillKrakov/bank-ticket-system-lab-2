@@ -2,6 +2,9 @@ package com.example.userservice.controller;
 
 import com.example.userservice.dto.UserDto;
 import com.example.userservice.dto.UserRequest;
+import com.example.userservice.exception.ForbiddenException;
+import com.example.userservice.exception.NotFoundException;
+import com.example.userservice.exception.ServiceUnavailableException;
 import com.example.userservice.model.entity.User;
 import com.example.userservice.model.enums.UserRole;
 import com.example.userservice.service.UserService;
@@ -45,25 +48,16 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public Mono<ResponseEntity<UserDto>> getUserById(@PathVariable UUID id) {
-        return userService.findById(id)
-                .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.notFound().build());
+    public Mono<UserDto> getUserById(@PathVariable UUID id) {
+        return userService.findById(id);
     }
 
     @PutMapping("/{id}")
-    public Mono<ResponseEntity<UserDto>> updateUser(
+    public Mono<UserDto> updateUser(
             @PathVariable UUID id,
             @RequestParam UUID actorId,
             @Valid @RequestBody UserRequest request) {
-        return userService.update(id, actorId, request)
-                .map(ResponseEntity::ok)
-                .onErrorResume(e -> {
-                    if (e instanceof com.example.userservice.exception.ForbiddenException) {
-                        return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN).build());
-                    }
-                    return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
-                });
+        return userService.update(id, actorId, request);
     }
 
     @DeleteMapping("/{id}")

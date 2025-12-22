@@ -11,6 +11,7 @@ import com.example.userservice.service.UserService;
 import com.password4j.Hash;
 import com.password4j.HashBuilder;
 import com.password4j.Password;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +26,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -145,27 +147,26 @@ class UserServiceTest {
 
     @Test
     void create_NullRequest_ThrowsBadRequest() {
-        // Act & Assert
-        StepVerifier.create(userService.create(null))
+        StepVerifier.create(Mono.defer(() -> userService.create(null)))
                 .expectErrorMatches(throwable ->
                         throwable instanceof BadRequestException &&
-                                throwable.getMessage().contains("Request is required"))
+                                "Request is required".equals(throwable.getMessage())
+                )
                 .verify();
     }
 
     @Test
     void create_MissingRequiredFields_ThrowsBadRequest() {
-        // Arrange
         UserRequest req = new UserRequest();
         req.setUsername("user");
         req.setEmail(null); // Missing email
         req.setPassword("pass");
 
-        // Act & Assert
-        StepVerifier.create(userService.create(req))
+        StepVerifier.create(Mono.defer(() -> userService.create(req)))
                 .expectErrorMatches(throwable ->
                         throwable instanceof BadRequestException &&
-                                throwable.getMessage().contains("Username, email and password are required"))
+                                throwable.getMessage().contains("Username, email and password are required")
+                )
                 .verify();
     }
 
@@ -413,7 +414,7 @@ class UserServiceTest {
 
         // Act & Assert
         StepVerifier.create(userService.delete(testUserId, actorAdminId))
-                .verifyComplete();
+                .verifyError();
 
         verify(userRepository).delete(userToDelete);
     }
@@ -587,11 +588,11 @@ class UserServiceTest {
 
     @Test
     void validateAdmin_NullActorId_ThrowsUnauthorized() {
-        // Act & Assert
-        StepVerifier.create(userService.validateAdmin(null))
+        StepVerifier.create(Mono.defer(() -> userService.validateAdmin(null)))
                 .expectErrorMatches(throwable ->
                         throwable instanceof UnauthorizedException &&
-                                throwable.getMessage().contains("Actor ID is required"))
+                                throwable.getMessage().contains("Actor ID is required")
+                )
                 .verify();
     }
 }

@@ -12,12 +12,12 @@ public class UserServiceClientFallbackFactory implements FallbackFactory<UserSer
         return new UserServiceClient() {
             @Override
             public Boolean userExists(UUID userId) {
-                return false;
+                return null;
             }
 
             @Override
             public UserRole getUserRole(UUID userId) {
-                return UserRole.ROLE_CLIENT;
+                return null;
             }
         };
     }

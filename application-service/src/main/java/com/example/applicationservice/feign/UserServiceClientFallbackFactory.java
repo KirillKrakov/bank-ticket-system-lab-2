@@ -1,5 +1,6 @@
 package com.example.applicationservice.feign;
 
+import com.example.applicationservice.exception.ServiceUnavailableException;
 import com.example.applicationservice.model.enums.UserRole;
 import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
@@ -12,12 +13,12 @@ public class UserServiceClientFallbackFactory implements FallbackFactory<UserSer
         return new UserServiceClient() {
             @Override
             public Boolean userExists(UUID id) {
-                return false;
+                throw new ServiceUnavailableException("User service is unavailable now");
             }
 
             @Override
             public UserRole getUserRole(UUID id) {
-                return UserRole.ROLE_CLIENT;
+                throw new ServiceUnavailableException("User service is unavailable now");
             }
         };
     }

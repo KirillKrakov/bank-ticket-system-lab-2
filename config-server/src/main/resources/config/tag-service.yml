@@ -1,9 +1,0 @@
-server:
-  port: 8085
-
-spring:
-  application:
-    name: tag-service
-  cloud:
-    discovery:
-      enabled: true

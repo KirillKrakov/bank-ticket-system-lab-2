@@ -107,6 +107,10 @@ public class ProductService {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
         }
 
+        if (userServiceClient.userExists((actorId)) == null) {
+            throw new ServiceUnavailableException("User service is unavailable now");
+        }
+
         // Проверяем существование пользователя через Feign
         if (!userServiceClient.userExists(actorId)) {
             throw new NotFoundException("Actor not found: " + actorId);
@@ -117,11 +121,17 @@ public class ProductService {
 
         // Проверяем права через Feign
         UserRole actorRole = userServiceClient.getUserRole(actorId);
+        if (actorRole == null) {
+            throw new ServiceUnavailableException("User service is unavailable now");
+        }
         boolean isAdmin = actorRole == UserRole.ROLE_ADMIN;
 
-        boolean isOwner = assignmentServiceClient.existsByUserAndProductAndRole(
+        Boolean isOwner = assignmentServiceClient.existsByUserAndProductAndRole(
                 actorId, productId, AssignmentRole.PRODUCT_OWNER.name()
         );
+        if (isOwner == null) {
+            throw new ServiceUnavailableException("Assignment service is unavailable now");
+        }
 
         if (!isAdmin && !isOwner) {
             throw new ForbiddenException("Only ADMIN or PRODUCT_OWNER can update product");
@@ -152,6 +162,10 @@ public class ProductService {
         }
 
         // Проверяем существование пользователя через Feign
+        if (userServiceClient.userExists((actorId)) == null) {
+            throw new ServiceUnavailableException("User service is unavailable now");
+        }
+
         if (!userServiceClient.userExists(actorId)) {
             throw new NotFoundException("Actor not found: " + actorId);
         }
@@ -161,11 +175,17 @@ public class ProductService {
 
         // Проверяем права через Feign
         UserRole actorRole = userServiceClient.getUserRole(actorId);
+        if (actorRole == null) {
+            throw new ServiceUnavailableException("User service is unavailable now");
+        }
         boolean isAdmin = actorRole == UserRole.ROLE_ADMIN;
 
-        boolean isOwner = assignmentServiceClient.existsByUserAndProductAndRole(
+        Boolean isOwner = assignmentServiceClient.existsByUserAndProductAndRole(
                 actorId, productId, AssignmentRole.PRODUCT_OWNER.name()
         );
+        if (isOwner == null) {
+            throw new ServiceUnavailableException("Assignment service is unavailable now");
+        }
 
         if (!isAdmin && !isOwner) {
             throw new ForbiddenException("Only ADMIN or PRODUCT_OWNER can delete product");
@@ -180,6 +200,9 @@ public class ProductService {
             productRepository.delete(product);
             logger.info("Product deleted: {}", productId);
 
+        } catch (ServiceUnavailableException ex) {
+            logger.error("Application service is unavailable now");
+            throw new ServiceUnavailableException("Application service is unavailable now");
         } catch (Exception ex) {
             logger.error("Failed to delete product and its applications: {}", ex.getMessage(), ex);
             throw new ConflictException("Failed to delete product and its applications: " + ex.getMessage());

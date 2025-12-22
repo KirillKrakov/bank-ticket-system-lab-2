@@ -36,7 +36,7 @@ public class UserService {
     @Transactional
     public Mono<UserDto> create(UserRequest req) {
         if (req == null) {
-            return Mono.error(new BadRequestException("Request is required"));
+            throw new BadRequestException("Request is required");
         }
 
         String username = req.getUsername() != null ? req.getUsername().trim() : null;
@@ -44,19 +44,19 @@ public class UserService {
         String password = req.getPassword();
 
         if (username == null || email == null || password == null) {
-            return Mono.error(new BadRequestException("Username, email and password are required"));
+            throw new BadRequestException("Username, email and password are required");
         }
 
         return userRepository.existsByUsername(username)
                 .flatMap(usernameExists -> {
                     if (usernameExists) {
-                        return Mono.error(new ConflictException("Username already in use"));
+                        throw new ConflictException("Username already in use");
                     }
                     return userRepository.existsByEmail(email);
                 })
                 .flatMap(emailExists -> {
                     if (emailExists) {
-                        return Mono.error(new ConflictException("Email already in use"));
+                        throw new ConflictException("Email already in use");
                     }
 
                     User user = new User();
@@ -107,9 +107,7 @@ public class UserService {
                     }
                     user.setUpdatedAt(Instant.now());
 
-                    return userRepository.save(user)
-                            .map(this::toDto)
-                            .doOnSuccess(dto -> log.info("User updated: {}", dto.getId()));
+                    return userRepository.save(user).map(this::toDto).doOnSuccess(dto -> log.info("User updated: {}", dto.getId()));
                 });
     }
 
@@ -120,20 +118,11 @@ public class UserService {
                 .switchIfEmpty(Mono.error(new NotFoundException("User not found: " + userId)))
                 .flatMap(user -> {
                     log.info("Deleting user {} and their applications", userId);
-
-                    // Обертываем Feign вызов в Mono.fromCallable
-                    return Mono.fromCallable(() ->
-                                    applicationServiceClient.deleteApplicationsByUserId(userId.toString())
-                            )
-                            .subscribeOn(Schedulers.boundedElastic())
-                            .doOnError(e -> log.error("Failed to delete applications for user {}: {}",
-                                    userId, e.getMessage()))
-                            .onErrorResume(e -> {
-                                log.warn("Continuing user deletion despite application service error");
-                                return Mono.empty();
-                            })
-                            .then(userRepository.delete(user))
-                            .doOnSuccess(v -> log.info("User deleted successfully: {}", userId));
+                    return Mono.fromCallable(() -> applicationServiceClient.deleteApplicationsByUserId(userId.toString())
+                    ).subscribeOn(Schedulers.boundedElastic())
+                    .doOnError(e -> log.error("Failed to delete applications for user {}: {}", userId, e.getMessage()))
+                    .then(userRepository.delete(user))
+                    .doOnSuccess(v -> log.info("User deleted successfully: {}", userId));
                 });
     }
 
@@ -149,8 +138,7 @@ public class UserService {
                         return userRepository.save(user).then();
                     }
                     return Mono.empty();
-                })
-                .doOnSuccess(v -> log.info("User {} promoted to MANAGER", userId));
+                }).doOnSuccess(v -> log.info("User {} promoted to MANAGER", userId));
     }
 
     @Transactional
@@ -165,8 +153,7 @@ public class UserService {
                         return userRepository.save(user).then();
                     }
                     return Mono.empty();
-                })
-                .doOnSuccess(v -> log.info("User {} demoted to CLIENT", userId));
+                }).doOnSuccess(v -> log.info("User {} demoted to CLIENT", userId));
     }
 
     public Mono<Long> count() {
@@ -175,14 +162,14 @@ public class UserService {
 
     public Mono<User> validateAdmin(UUID actorId) {
         if (actorId == null) {
-            return Mono.error(new UnauthorizedException("Actor ID is required"));
+            throw new UnauthorizedException("Actor ID is required");
         }
 
         return userRepository.findById(actorId)
                 .switchIfEmpty(Mono.error(new NotFoundException("Actor not found: " + actorId)))
                 .flatMap(actor -> {
                     if (actor.getRole() != UserRole.ROLE_ADMIN) {
-                        return Mono.error(new ForbiddenException("Only ADMIN can perform this action"));
+                        throw new ForbiddenException("Only ADMIN can perform this action");
                     }
                     return Mono.just(actor);
                 });

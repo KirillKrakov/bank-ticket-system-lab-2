@@ -64,20 +64,31 @@ public class ApplicationService {
             return Mono.error(new BadRequestException("Applicant ID and Product ID are required"));
         }
 
-        return Mono.fromCallable(() -> userServiceClient.userExists(applicantId))
-                .subscribeOn(Schedulers.boundedElastic())
+        return Mono.fromCallable(() -> {
+                try {
+                    return userServiceClient.userExists(applicantId);
+                } catch (ServiceUnavailableException e) {
+                    throw new ServiceUnavailableException("User service is unavailable now");
+                } catch (NotFoundException e){
+                    throw new NotFoundException("Applicant with this ID not found");
+                }}).subscribeOn(Schedulers.boundedElastic())
                 .flatMap(userExists -> {
                     if (!userExists) {
-                        return Mono.error(new NotFoundException("Applicant not found"));
+                        return Mono.error(new NotFoundException("Applicant with this ID not found"));
                     }
-                    return Mono.fromCallable(() -> productServiceClient.productExists(productId))
-                            .subscribeOn(Schedulers.boundedElastic());
+                    return Mono.fromCallable(() -> {
+                        try {
+                            return productServiceClient.productExists(productId);
+                        } catch (ServiceUnavailableException e) {
+                            throw new ServiceUnavailableException("Product service is unavailable now");
+                        } catch (NotFoundException e){
+                            throw new NotFoundException("Product with this ID not found");
+                        }}).subscribeOn(Schedulers.boundedElastic());
                 })
                 .flatMap(productExists -> {
                     if (!productExists) {
-                        return Mono.error(new NotFoundException("Product not found"));
+                        return Mono.error(new NotFoundException("Product with this ID not found"));
                     }
-
                     return Mono.fromCallable(() -> {
                         Application app = new Application();
                         app.setId(UUID.randomUUID());
@@ -85,7 +96,6 @@ public class ApplicationService {
                         app.setProductId(productId);
                         app.setStatus(ApplicationStatus.SUBMITTED);
                         app.setCreatedAt(Instant.now());
-
                         if (req.getDocuments() != null) {
                             List<Document> docs = req.getDocuments().stream()
                                     .map(dreq -> {
@@ -119,10 +129,17 @@ public class ApplicationService {
                 .flatMap(app -> {
                     List<String> tagNames = req.getTags() != null ? req.getTags() : List.of();
                     if (!tagNames.isEmpty()) {
-                        // Обертываем tagServiceClient вызов
-                        return Mono.fromCallable(() -> tagServiceClient.createOrGetTagsBatch(tagNames))
-                                .subscribeOn(Schedulers.boundedElastic())
-                                .flatMap(tagDtos -> Mono.fromCallable(() -> {
+                        return Mono.fromCallable(() -> {
+                            try {
+                                return tagServiceClient.createOrGetTagsBatch(tagNames);
+                            } catch (ServiceUnavailableException e) {
+                                throw new ServiceUnavailableException("Tag service is unavailable now. Application saved without tags");
+                            }}).subscribeOn(Schedulers.boundedElastic())
+                                .flatMap(tagDtos -> {
+                                    if (tagDtos == null) {
+                                        return Mono.error(new ServiceUnavailableException("Tag service is unavailable now. Application saved without tags"));
+                                    }
+                                    return Mono.fromCallable(() -> {
                                     Set<String> tagNamesSet = tagDtos.stream()
                                             .map(TagDto::getName)
                                             .collect(Collectors.toSet());
@@ -130,12 +147,8 @@ public class ApplicationService {
                                     applicationRepository.save(app);
                                     log.info("Added {} tags to application {}", tagNamesSet.size(), app.getId());
                                     return app;
-                                }).subscribeOn(Schedulers.boundedElastic()))
-                                .onErrorResume(e -> {
-                                    log.warn("Failed to process tags for application {}: {}",
-                                            app.getId(), e.getMessage());
-                                    return Mono.just(app);
                                 });
+                                }).subscribeOn(Schedulers.boundedElastic());
                     }
                     return Mono.just(app);
                 })
@@ -149,27 +162,21 @@ public class ApplicationService {
         }
         return Mono.fromCallable(() -> {
                     Pageable pageable = PageRequest.of(page, size);
-                    // 1. Получаем заявки с документами (без тегов)
                     Page<Application> applicationsPage = applicationRepository.findAllWithDocuments(pageable);
                     List<Application> applications = applicationsPage.getContent();
                     if (applications.isEmpty()) {
                         return List.<ApplicationDto>of();
                     }
-                    // 2. Получаем ID заявок для загрузки тегов
                     List<UUID> applicationIds = applications.stream()
                             .map(Application::getId)
                             .collect(Collectors.toList());
-                    // 3. Загружаем теги отдельным запросом
                     List<Application> appsWithTags = applicationRepository.findByIdsWithTags(applicationIds);
-                    // 4. Создаем карту тегов
                     Map<UUID, Set<String>> tagsMap = new HashMap<>();
                     for (Application appWithTags : appsWithTags) {
                         tagsMap.put(appWithTags.getId(), appWithTags.getTags());
                     }
-                    // 5. Объединяем данные
                     return applications.stream()
                             .map(app -> {
-                                // Добавляем теги из карты
                                 Set<String> tags = tagsMap.get(app.getId());
                                 if (tags != null) {
                                     app.setTags(tags);
@@ -184,13 +191,11 @@ public class ApplicationService {
     @Transactional(readOnly = true)
     public Mono<ApplicationDto> findById(UUID id) {
         return Mono.fromCallable(() -> {
-            // 1. Получаем заявку с документами
             Optional<Application> appWithDocs = applicationRepository.findByIdWithDocuments(id);
             if (appWithDocs.isEmpty()) {
-                return null;
+                throw new NotFoundException("Application with this ID not found");
             }
             Application app = appWithDocs.get();
-            // 2. Получаем теги отдельно
             Optional<Application> appWithTags = applicationRepository.findByIdWithTags(id);
             appWithTags.ifPresent(appWithTag -> app.setTags(appWithTag.getTags()));
             return toDto(app);
@@ -219,7 +224,6 @@ public class ApplicationService {
         return Mono.fromCallable(() -> {
             Instant ts = tsHolder[0];
             UUID id = idHolder[0];
-            // Получаем ID заявок с пагинацией
             List<UUID> appIds;
             if (ts == null) {
                 appIds = applicationRepository.findIdsFirstPage(capped);
@@ -229,24 +233,18 @@ public class ApplicationService {
             if (appIds.isEmpty()) {
                 return new ApplicationPage(List.of(), null);
             }
-            // Загружаем документы отдельно
             List<Application> appsWithDocs = applicationRepository.findByIdsWithDocuments(appIds);
-            // Загружаем теги отдельно
             List<Application> appsWithTags = applicationRepository.findByIdsWithTags(appIds);
-            // Создаем карту для объединения данных
             Map<UUID, Application> appMap = new HashMap<>();
-            // Добавляем документы
             for (Application app : appsWithDocs) {
                 appMap.put(app.getId(), app);
             }
-            // Добавляем теги
             for (Application appWithTags : appsWithTags) {
                 Application app = appMap.get(appWithTags.getId());
                 if (app != null) {
                     app.setTags(appWithTags.getTags());
                 }
             }
-            // Преобразуем в список в правильном порядке
             List<Application> apps = appIds.stream()
                     .map(appMap::get)
                     .filter(Objects::nonNull)
@@ -270,32 +268,22 @@ public class ApplicationService {
                     if (!valid) {
                         return Mono.error(new ForbiddenException("Insufficient permissions"));
                     }
-
-                    // Используем один блок fromCallable для всей логики
                     return Mono.fromCallable(() -> {
-                                // 1. Получаем заявку с тегами
                                 Application app = applicationRepository.findByIdWithTags(applicationId)
                                         .orElseThrow(() -> new NotFoundException("Application not found"));
-
-                                // 2. Получаем теги из tag-service
-                                List<TagDto> tagDtos = tagServiceClient.createOrGetTagsBatch(tagNames);
-
-                                // 3. Добавляем теги к заявке
-                                Set<String> newTags = tagDtos.stream()
-                                        .map(TagDto::getName)
-                                        .collect(Collectors.toSet());
-
-                                app.getTags().addAll(newTags);
-                                applicationRepository.save(app);
-
-                                log.info("Added {} tags to application {}", newTags.size(), applicationId);
-                                return (Void) null;
-
-                            }).subscribeOn(Schedulers.boundedElastic())
-                            .onErrorResume(e -> {
-                                log.error("Failed to attach tags: {}", e.getMessage());
-                                return Mono.error(new ConflictException("Failed to attach tags: " + e.getMessage()));
-                            });
+                                try {
+                                    List<TagDto> tagDtos = tagServiceClient.createOrGetTagsBatch(tagNames);
+                                    Set<String> newTags = tagDtos.stream()
+                                            .map(TagDto::getName)
+                                            .collect(Collectors.toSet());
+                                    app.getTags().addAll(newTags);
+                                    applicationRepository.save(app);
+                                    log.info("Added {} tags to existed application {}", newTags.size(), applicationId);
+                                    return (Void) null;
+                                } catch (ServiceUnavailableException e) {
+                                    throw new ServiceUnavailableException("Tag service is unavailable now");
+                                }
+                            }).subscribeOn(Schedulers.boundedElastic());
                 });
     }
 
@@ -306,16 +294,11 @@ public class ApplicationService {
                     if (!valid) {
                         return Mono.error(new ForbiddenException("Insufficient permissions"));
                     }
-
                     return Mono.fromCallable(() -> {
-                        // Получаем заявку с тегами
                         Application app = applicationRepository.findByIdWithTags(applicationId)
                                 .orElseThrow(() -> new NotFoundException("Application not found"));
-
-                        // Удаляем теги
                         tagNames.forEach(app.getTags()::remove);
                         applicationRepository.save(app);
-
                         log.info("Removed {} tags from application {}", tagNames.size(), applicationId);
                         return (Void) null;
                     }).subscribeOn(Schedulers.boundedElastic());
@@ -325,54 +308,53 @@ public class ApplicationService {
     @Transactional
     public Mono<ApplicationDto> changeStatus(UUID applicationId, String status, UUID actorId) {
         return Mono.fromCallable(() -> {
-            // 1. Проверка прав
-            UserRole role = userServiceClient.getUserRole(actorId);
-            boolean isManagerOrAdmin = "ROLE_ADMIN".equals(role.name()) || "ROLE_MANAGER".equals(role.name());
-            if (!isManagerOrAdmin) {
-                throw new ForbiddenException("Only admin or manager can change application status");
-            }
-            // 2. Получаем базовую заявку для проверки прав
-            Application basicApp = applicationRepository.findById(applicationId)
-                    .orElseThrow(() -> new NotFoundException("Application not found"));
-            // 3. Проверка на менеджера
-            if (basicApp.getApplicantId().equals(actorId) && "ROLE_MANAGER".equals(role.name())) {
-                throw new ConflictException("Managers cannot change status of their own applications");
-            }
-            // 4. Получаем полную заявку (документы и теги отдельно)
-            Optional<Application> appWithDocs = applicationRepository.findByIdWithDocuments(applicationId);
-            Application app = appWithDocs.orElse(basicApp);
-            // Загружаем теги если нужно
-            Optional<Application> appWithTags = applicationRepository.findByIdWithTags(applicationId);
-            appWithTags.ifPresent(appWithTag -> app.setTags(appWithTag.getTags()));
-            // 5. Меняем статус
-            ApplicationStatus newStatus;
             try {
-                newStatus = ApplicationStatus.valueOf(status.trim().toUpperCase());
-            } catch (IllegalArgumentException e) {
-                throw new ConflictException("Invalid status. Valid values: DRAFT, SUBMITTED, IN_REVIEW, APPROVED, REJECTED");
+                return userServiceClient.getUserRole(actorId);
+            } catch (ServiceUnavailableException e) {
+                throw new ServiceUnavailableException("User service is unavailable now");
             }
-            ApplicationStatus oldStatus = app.getStatus();
-            if (oldStatus != newStatus) {
-                app.setStatus(newStatus);
-                app.setUpdatedAt(Instant.now());
-                applicationRepository.save(app);
-                // 6. Сохраняем историю
-                ApplicationHistory hist = new ApplicationHistory();
-                hist.setId(UUID.randomUUID());
-                hist.setApplication(app);
-                hist.setOldStatus(oldStatus);
-                hist.setNewStatus(newStatus);
-                hist.setChangedBy(role);
-                hist.setChangedAt(Instant.now());
-                applicationHistoryRepository.save(hist);
-
-                log.info("Application {} status changed from {} to {}",
-                        applicationId, oldStatus, newStatus);
-            }
-            // 7. Возвращаем DTO
-            return toDto(app);
-
-        }).subscribeOn(Schedulers.boundedElastic());
+        }).subscribeOn(Schedulers.boundedElastic())
+        .flatMap(role -> {
+        boolean isManagerOrAdmin = "ROLE_ADMIN".equals(role.name()) || "ROLE_MANAGER".equals(role.name());
+        if (!isManagerOrAdmin) {
+             return Mono.error(new ForbiddenException("Only admin or manager can change application status"));
+        }
+         return Mono.fromCallable(() -> {
+             Application basicApp = applicationRepository.findById(applicationId)
+                     .orElseThrow(() -> new NotFoundException("Application not found"));
+             if (basicApp.getApplicantId().equals(actorId) && "ROLE_MANAGER".equals(role.name())) {
+                 throw new ConflictException("Managers cannot change status of their own applications");
+             }
+             Optional<Application> appWithDocs = applicationRepository.findByIdWithDocuments(applicationId);
+             Application app = appWithDocs.orElse(basicApp);
+             Optional<Application> appWithTags = applicationRepository.findByIdWithTags(applicationId);
+             appWithTags.ifPresent(appWithTag -> app.setTags(appWithTag.getTags()));
+             ApplicationStatus newStatus;
+             try {
+                 newStatus = ApplicationStatus.valueOf(status.trim().toUpperCase());
+             } catch (IllegalArgumentException e) {
+                 throw new ConflictException(
+                         "Invalid status. Valid values: DRAFT, SUBMITTED, IN_REVIEW, APPROVED, REJECTED");
+             }
+             ApplicationStatus oldStatus = app.getStatus();
+             if (oldStatus != newStatus) {
+                 app.setStatus(newStatus);
+                 app.setUpdatedAt(Instant.now());
+                 applicationRepository.save(app);
+                 ApplicationHistory hist = new ApplicationHistory();
+                 hist.setId(UUID.randomUUID());
+                 hist.setApplication(app);
+                 hist.setOldStatus(oldStatus);
+                 hist.setNewStatus(newStatus);
+                 hist.setChangedBy(role);
+                 hist.setChangedAt(Instant.now());
+                 applicationHistoryRepository.save(hist);
+                 log.info("Application {} status changed from {} to {} by {}",
+                         applicationId, oldStatus, newStatus, actorId);
+             }
+             return toDto(app);
+         }).subscribeOn(Schedulers.boundedElastic());
+        });
     }
 
     @Transactional
@@ -416,17 +398,11 @@ public class ApplicationService {
     @Transactional
     public Mono<Void> deleteApplicationsByUserId(UUID userId) {
         return Mono.fromCallable(() -> {
-            // Сначала получаем ID заявок пользователя
             List<UUID> applicationIds = applicationRepository.findIdsByApplicantId(userId);
-            // Удаляем документы, историю и заявки по отдельности
             for (UUID appId : applicationIds) {
-                // Удаляем документы
                 documentRepository.deleteByApplicationId(appId);
-                // Удаляем историю
                 applicationHistoryRepository.deleteByApplicationId(appId);
-                // Удаляем теги
                 applicationRepository.deleteTagsByApplicationId(appId);
-                // Удаляем заявку
                 applicationRepository.deleteById(appId);
 
                 log.info("Deleted application {} for user {}", appId, userId);
@@ -439,17 +415,11 @@ public class ApplicationService {
     @Transactional
     public Mono<Void> deleteApplicationsByProductId(UUID productId) {
         return Mono.fromCallable(() -> {
-            // Сначала получаем ID заявок пользователя
             List<UUID> productIds = applicationRepository.findIdsByProductId(productId);
-            // Удаляем документы, историю и заявки по отдельности
             for (UUID appId : productIds) {
-                // Удаляем документы
                 documentRepository.deleteByApplicationId(appId);
-                // Удаляем историю
                 applicationHistoryRepository.deleteByApplicationId(appId);
-                // Удаляем теги
                 applicationRepository.deleteTagsByApplicationId(appId);
-                // Удаляем заявку
                 applicationRepository.deleteById(appId);
 
                 log.info("Deleted application {} for product {}", appId, productId);
@@ -522,8 +492,7 @@ public class ApplicationService {
         dto.setApplicationId(history.getApplication().getId());
         dto.setOldStatus(history.getOldStatus());
         dto.setNewStatus(history.getNewStatus());
-        // Преобразуем строку в UserRole (упрощённо)
-        // dto.setChangedByRole(UserRole.valueOf(history.getChangedBy()));
+        dto.setChangedByRole(history.getChangedBy());
         dto.setChangedAt(history.getChangedAt());
         return dto;
     }
@@ -532,7 +501,12 @@ public class ApplicationService {
     private Mono<Boolean> validateActor(UUID applicationId, UUID actorId) {
         return findById(applicationId)
                 .flatMap(app ->
-                        Mono.fromCallable(() -> userServiceClient.getUserRole(actorId))
+                        Mono.fromCallable(() -> {
+                            try {
+                                return userServiceClient.getUserRole(actorId);
+                            } catch (ServiceUnavailableException e) {
+                                throw new ServiceUnavailableException("User service is unavailable");
+                            }})
                                 .subscribeOn(Schedulers.boundedElastic())
                                 .map(role -> {
                                     if (app.getApplicantId().equals(actorId)) {
@@ -545,16 +519,13 @@ public class ApplicationService {
                 .defaultIfEmpty(false);
     }
 
-    private Mono<Boolean> validateActorIsManagerOrAdmin(UUID actorId) {
-        return Mono.fromCallable(() -> userServiceClient.getUserRole(actorId))
-                .subscribeOn(Schedulers.boundedElastic())
-                .map(role -> "ROLE_ADMIN".equals(role.name()) || "ROLE_MANAGER".equals(role.name()))
-                .defaultIfEmpty(false);
-    }
-
     private Mono<Boolean> validateActorIsAdmin(UUID actorId) {
-        return Mono.fromCallable(() -> userServiceClient.getUserRole(actorId))
-                .subscribeOn(Schedulers.boundedElastic())
+        return Mono.fromCallable(() -> {
+            try {
+                return userServiceClient.getUserRole(actorId);
+            } catch (ServiceUnavailableException e) {
+                throw new ServiceUnavailableException("User service is unavailable");
+            }}).subscribeOn(Schedulers.boundedElastic())
                 .map(role -> "ROLE_ADMIN".equals(role.name()))
                 .defaultIfEmpty(false);
     }
@@ -562,8 +533,12 @@ public class ApplicationService {
     private Mono<Boolean> validateActorCanViewHistory(UUID applicationId, UUID actorId) {
         return findById(applicationId)
                 .flatMap(app ->
-                        Mono.fromCallable(() -> userServiceClient.getUserRole(actorId))
-                                .subscribeOn(Schedulers.boundedElastic())
+                        Mono.fromCallable(() -> {
+                            try {
+                                return userServiceClient.getUserRole(actorId);
+                            } catch (ServiceUnavailableException e) {
+                                throw new ServiceUnavailableException("User service is unavailable");
+                            }}).subscribeOn(Schedulers.boundedElastic())
                                 .map(role -> {
                                     if (app.getApplicantId().equals(actorId)) {
                                         return true;

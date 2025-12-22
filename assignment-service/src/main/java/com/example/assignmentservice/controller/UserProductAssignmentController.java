@@ -35,7 +35,8 @@ public class UserProductAssignmentController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Assignment created successfully"),
             @ApiResponse(responseCode = "403", description = "Insufficient rights"),
-            @ApiResponse(responseCode = "404", description = "User, product or actor not found")
+            @ApiResponse(responseCode = "404", description = "User, product or actor not found"),
+            @ApiResponse(responseCode = "503", description = "User or product service is unavailable now")
     })
     @PostMapping
     public ResponseEntity<UserProductAssignmentDto> assign(
@@ -95,7 +96,8 @@ public class UserProductAssignmentController {
             @ApiResponse(responseCode = "204", description = "Assignments deleted successfully"),
             @ApiResponse(responseCode = "401", description = "Actor is unauthorized"),
             @ApiResponse(responseCode = "403", description = "Insufficient rights"),
-            @ApiResponse(responseCode = "404", description = "User or product not found")
+            @ApiResponse(responseCode = "404", description = "User or product not found"),
+            @ApiResponse(responseCode = "503", description = "User or product service is unavailable now")
     })
     @DeleteMapping
     public ResponseEntity<Void> deleteAssignments(

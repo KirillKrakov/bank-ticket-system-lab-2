@@ -1,6 +1,5 @@
 package com.example.applicationservice.feign;
 
-import com.example.applicationservice.config.FeignClientConfig;
 import com.example.applicationservice.dto.TagDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.MediaType;
@@ -11,8 +10,7 @@ import java.util.List;
 
 @FeignClient(
         name = "tag-service",
-        fallbackFactory = TagServiceClientFallbackFactory.class,
-        configuration = FeignClientConfig.class
+        fallbackFactory = TagServiceClientFallbackFactory.class
 )
 public interface TagServiceClient {
 

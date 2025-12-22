@@ -209,7 +209,7 @@ public class ProductServiceTest {
 
         assertThrows(NotFoundException.class, () ->
                 productService.updateProduct(productId, req, actorId));
-        verify(userServiceClient, times(1)).userExists(actorId);
+        verify(userServiceClient, times(2)).userExists(actorId);
     }
 
     @Test
@@ -372,7 +372,7 @@ public class ProductServiceTest {
 
         assertThrows(NotFoundException.class, () ->
                 productService.deleteProduct(productId, actorId));
-        verify(userServiceClient, times(1)).userExists(actorId);
+        verify(userServiceClient, times(2)).userExists(actorId);
     }
 
     @Test

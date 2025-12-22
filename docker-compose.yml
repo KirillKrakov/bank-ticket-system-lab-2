@@ -1,5 +1,4 @@
 services:
-  # Инфраструктурные сервисы
   service-discovery:
     build:
       context: .
@@ -24,27 +23,6 @@ services:
     networks:
       - bank-network
 
-  gateway:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        MODULE_PATH: gateway
-        JAR_NAME: gateway-1.0.0.jar
-    ports:
-      - "8080:8080"
-    environment:
-      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka
-    depends_on:
-      - config-server
-      - service-discovery
-    networks:
-      - bank-network
-
-  # Бизнес-сервисы
-
-  # user-service (Reactor + R2DBC)
   postgres-user:
     image: postgres:17
     environment:
@@ -70,8 +48,6 @@ services:
       args:
         MODULE_PATH: user-service
         JAR_NAME: user-service-1.0.0.jar
-    ports:
-      - "8081:8081"
     environment:
       SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
       USER_DB_URL: r2dbc:postgresql://postgres-user:5432/userdb
@@ -89,7 +65,6 @@ services:
     networks:
       - bank-network
 
-  # product-service (Spring MVC + JPA)
   postgres-product:
     image: postgres:17
     environment:
@@ -115,8 +90,6 @@ services:
       args:
         MODULE_PATH: product-service
         JAR_NAME: product-service-1.0.0.jar
-    ports:
-      - "8082:8082"
     environment:
       SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
       PRODUCT_DB_URL: jdbc:postgresql://postgres-product:5432/productdb
@@ -133,15 +106,12 @@ services:
     networks:
       - bank-network
 
-  # assignment-service (Spring MVC + JPA)
   postgres-assignment:
     image: postgres:17
     environment:
       POSTGRES_DB: assignmentdb
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    ports:
-      - "5435:5432"
     volumes:
       - pgdata-assignment:/var/lib/postgresql/data
     networks:
@@ -159,8 +129,6 @@ services:
       args:
         MODULE_PATH: assignment-service
         JAR_NAME: assignment-service-1.0.0.jar
-    ports:
-      - "8084:8084"
     environment:
       SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
       ASSIGNMENT_DB_URL: jdbc:postgresql://postgres-assignment:5432/assignmentdb
@@ -202,8 +170,6 @@ services:
       args:
         MODULE_PATH: application-service
         JAR_NAME: application-service-1.0.0.jar
-    ports:
-      - "8083:8083"
     environment:
       SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
       APP_DB_URL: jdbc:postgresql://postgres-app:5432/appdb
@@ -213,11 +179,9 @@ services:
     depends_on:
       postgres-app:
         condition: service_healthy
-      user-service:
+      config-server:
         condition: service_started
-      product-service:
-        condition: service_started
-      tag-service:
+      service-discovery:
         condition: service_started
     networks:
       - bank-network
@@ -247,8 +211,6 @@ services:
       args:
         MODULE_PATH: tag-service
         JAR_NAME: tag-service-1.0.0.jar
-    ports:
-      - "8085:8085"
     environment:
       SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
       TAG_DB_URL: jdbc:postgresql://postgres-tag:5432/tagdb
@@ -258,6 +220,26 @@ services:
     depends_on:
       postgres-tag:
         condition: service_healthy
+      config-server:
+        condition: service_started
+      service-discovery:
+        condition: service_started
+    networks:
+      - bank-network
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        MODULE_PATH: gateway
+        JAR_NAME: gateway-1.0.0.jar
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka
+    depends_on:
       config-server:
         condition: service_started
       service-discovery:

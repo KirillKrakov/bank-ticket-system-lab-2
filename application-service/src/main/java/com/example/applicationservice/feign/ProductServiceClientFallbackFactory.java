@@ -1,5 +1,6 @@
 package com.example.applicationservice.feign;
 
+import com.example.applicationservice.exception.ServiceUnavailableException;
 import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
 import java.util.UUID;
@@ -11,7 +12,7 @@ public class ProductServiceClientFallbackFactory implements FallbackFactory<Prod
         return new ProductServiceClient() {
             @Override
             public Boolean productExists(UUID id) {
-                return false;
+                throw new ServiceUnavailableException("Product service is unavailable now");
             }
         };
     }

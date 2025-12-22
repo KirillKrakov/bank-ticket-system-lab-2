@@ -12,3 +12,13 @@ eureka:
   server:
     enable-self-preservation: false
     wait-time-in-ms-when-sync-empty: 0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      enabled: true
+      show-details: always

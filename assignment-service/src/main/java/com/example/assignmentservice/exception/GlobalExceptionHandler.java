@@ -42,8 +42,8 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage());
     }
 
-    @ExceptionHandler(ServiceUnavailableException .class)
-    public ResponseEntity<Map<String, Object>> handleUnavailable(ServiceUnavailableException ex) {
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleUnavailableService(ServiceUnavailableException ex) {
         return buildErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
     }
 
