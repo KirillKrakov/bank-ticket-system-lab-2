@@ -51,7 +51,6 @@ public class ApplicationServiceTest {
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        // Не нужно создавать экземпляр вручную, @InjectMocks сделает это
     }
 
     // -----------------------

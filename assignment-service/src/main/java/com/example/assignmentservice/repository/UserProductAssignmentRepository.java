@@ -21,6 +21,7 @@ public interface UserProductAssignmentRepository extends JpaRepository<UserProdu
     Optional<UserProductAssignment> findByUserIdAndProductId(UUID userId, UUID productId);
 
     boolean existsByUserIdAndProductIdAndRoleOnProduct(UUID userId, UUID productId, AssignmentRole role);
+    boolean existsByUserIdAndProductId(UUID userId, UUID productId);
 
     boolean existsByUserIdAndProductId(UUID userId, UUID productId);
 

@@ -1,0 +1,13 @@
+user-service:
+  url: http://localhost:${wiremock.server.port}
+
+product-service:
+  url: http://localhost:${wiremock.server.port}
+
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: full
