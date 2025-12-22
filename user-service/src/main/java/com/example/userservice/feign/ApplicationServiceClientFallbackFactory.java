@@ -1,5 +1,6 @@
 package com.example.userservice.feign;
 
+import com.example.userservice.exception.ServiceUnavailableException;
 import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
 
@@ -10,7 +11,7 @@ public class ApplicationServiceClientFallbackFactory implements FallbackFactory<
         return new ApplicationServiceClient() {
             @Override
             public Void deleteApplicationsByUserId(String userId) {
-                return null;
+                throw new ServiceUnavailableException("Application service is unavailable now");
             }
         };
     }

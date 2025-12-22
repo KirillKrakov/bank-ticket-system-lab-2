@@ -45,10 +45,8 @@ public class UserProductAssignmentService {
         logger.info("Creating assignment: user={}, product={}, role={}, actor={}",
                 userId, productId, role, actorId);
 
-        // Проверяем права актора
         checkActorRights(actorId, productId);
 
-        // Проверяем существование пользователя и продукта
         checkUserAndProductExist(userId, productId);
 
         Optional<UserProductAssignment> existingAssignment = repo.findByUserIdAndProductId(userId, productId);
@@ -97,23 +95,19 @@ public class UserProductAssignmentService {
             throw new UnauthorizedException("Actor ID is required");
         }
 
-        // Проверяем, что актор - ADMIN
         checkAdminRights(actorId);
 
         if (userId != null && productId != null) {
-            // Проверяем существование пользователя и продукта
             checkUserAndProductExist(userId, productId);
             repo.deleteByUserIdAndProductId(userId, productId);
             logger.info("Deleted assignment for user {} and product {}", userId, productId);
 
         } else if (userId != null) {
-            // Проверяем существование пользователя
             checkUserExists(userId);
             repo.deleteByUserId(userId);
             logger.info("Deleted all assignments for user {}", userId);
 
         } else if (productId != null) {
-            // Проверяем существование продукта
             checkProductExists(productId);
             repo.deleteByProductId(productId);
             logger.info("Deleted all assignments for product {}", productId);
@@ -146,16 +140,14 @@ public class UserProductAssignmentService {
             boolean isAdmin = actorRole == UserRole.ROLE_ADMIN;
             boolean isOwner = repo.existsByUserIdAndProductIdAndRoleOnProduct(
                     actorId, productId, AssignmentRole.PRODUCT_OWNER);
-
             if (!isAdmin && !isOwner) {
                 throw new ForbiddenException("Only ADMIN or PRODUCT_OWNER can assign products");
             }
-
         } catch (FeignException.NotFound e) {
             throw new NotFoundException("Actor not found: " + actorId);
-        } catch (FeignException e) {
+        } catch (FeignException | ServiceUnavailableException e) {
             logger.error("Error checking actor rights: {}", e.getMessage());
-            throw new ServiceUnavailableException("Cannot verify user rights. User service unavailable.");
+            throw new ServiceUnavailableException("Cannot verify user rights. User service is unavailable now");
         }
     }
 
@@ -167,9 +159,9 @@ public class UserProductAssignmentService {
             }
         } catch (FeignException.NotFound e) {
             throw new NotFoundException("Actor not found: " + actorId);
-        } catch (FeignException e) {
+        } catch (FeignException | ServiceUnavailableException e) {
             logger.error("Error checking admin rights: {}", e.getMessage());
-            throw new ServiceUnavailableException("Cannot verify admin rights. User service unavailable.");
+            throw new ServiceUnavailableException("Cannot verify admin rights. User service is unavailable now");
         }
     }
 
@@ -181,24 +173,24 @@ public class UserProductAssignmentService {
     private void checkUserExists(UUID userId) {
         try {
             Boolean exists = userServiceClient.userExists(userId);
-            if (exists == null || !exists) {
+            if (!exists) {
                 throw new NotFoundException("User not found: " + userId);
             }
-        } catch (FeignException e) {
+        } catch (FeignException | ServiceUnavailableException e) {
             logger.error("Error checking user existence: {}", e.getMessage());
-            throw new ServiceUnavailableException("Cannot verify user. User service unavailable.");
+            throw new ServiceUnavailableException("Cannot verify user. User service unavailable now");
         }
     }
 
     private void checkProductExists(UUID productId) {
         try {
             Boolean exists = productServiceClient.productExists(productId);
-            if (exists == null || !exists) {
+            if (!exists) {
                 throw new NotFoundException("Product not found: " + productId);
             }
-        } catch (FeignException e) {
+        } catch (FeignException | ServiceUnavailableException e) {
             logger.error("Error checking product existence: {}", e.getMessage());
-            throw new ServiceUnavailableException("Cannot verify product. Product service unavailable.");
+            throw new ServiceUnavailableException("Cannot verify product. Product service unavailable now");
         }
     }
 

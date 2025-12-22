@@ -1,9 +1,9 @@
 package com.example.applicationservice.controller;
 
 import com.example.applicationservice.dto.*;
-import com.example.applicationservice.exception.BadRequestException;
-import com.example.applicationservice.model.entity.Application;
+import com.example.applicationservice.exception.*;
 import com.example.applicationservice.service.ApplicationService;
+import com.example.applicationservice.util.ApplicationPage;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -20,7 +20,6 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Tag(name = "Applications", description = "API for managing applications")
 @RestController
@@ -41,26 +40,18 @@ public class ApplicationController {
             @ApiResponse(responseCode = "201", description = "Application created successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid request body"),
             @ApiResponse(responseCode = "404", description = "Applicant or product not found"),
-            @ApiResponse(responseCode = "409", description = "Failed to process tags")
+            @ApiResponse(responseCode = "409", description = "Failed to process tags"),
+            @ApiResponse(responseCode = "503", description = "User or product service is unavailable now")
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Mono<ResponseEntity<ApplicationDto>> createApplication(
+    public Mono<ApplicationDto> createApplication(
             @Valid @RequestBody ApplicationRequest request) {
 
         log.info("Creating new application for applicant: {}, product: {}",
                 request.getApplicantId(), request.getProductId());
 
-        return applicationService.createApplication(request)
-                .map(dto -> {
-                    log.info("Application created successfully: {}", dto.getId());
-                    return ResponseEntity.status(HttpStatus.CREATED)
-                            .body(dto);
-                })
-                .onErrorResume(e -> {
-                    log.error("Failed to create application: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.badRequest().build());
-                });
+        return applicationService.createApplication(request);
     }
 
     // ReadAll: GET "/api/v1/applications?page=0&size=20"
@@ -70,31 +61,13 @@ public class ApplicationController {
             @ApiResponse(responseCode = "400", description = "Page size too large")
     })
     @GetMapping
-    public Mono<ResponseEntity<Flux<ApplicationDto>>> listApplications(
+    public Flux<ApplicationDto> listApplications(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-
         if (size > MAX_PAGE_SIZE) {
-            return Mono.error(new BadRequestException(
-                    String.format("Page size cannot be greater than %d", MAX_PAGE_SIZE)));
+            return Flux.error(new BadRequestException(String.format("Page size cannot be greater than %d", MAX_PAGE_SIZE)));
         }
-
-        log.debug("Listing applications - page: {}, size: {}", page, size);
-
-        return applicationService.count()
-                .map(totalCount -> {
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.add("X-Total-Count", String.valueOf(totalCount));
-
-                    Flux<ApplicationDto> applications = applicationService.findAll(page, size);
-                    return ResponseEntity.ok()
-                            .headers(headers)
-                            .body(applications);
-                })
-                .onErrorResume(e -> {
-                    log.error("Failed to list applications: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.internalServerError().build());
-                });
+        return applicationService.findAll(page, size);
     }
 
     // Read: GET "/api/v1/applications/{id}"
@@ -104,16 +77,9 @@ public class ApplicationController {
             @ApiResponse(responseCode = "404", description = "Application not found")
     })
     @GetMapping("/{id}")
-    public Mono<ResponseEntity<ApplicationDto>> getApplication(@PathVariable UUID id) {
+    public Mono<ApplicationDto> getApplication(@PathVariable UUID id) {
         log.debug("Getting application: {}", id);
-
-        return applicationService.findById(id)
-                .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.notFound().build())
-                .onErrorResume(e -> {
-                    log.error("Failed to get application {}: {}", id, e.getMessage());
-                    return Mono.just(ResponseEntity.internalServerError().build());
-                });
+        return applicationService.findById(id);
     }
 
     // ReadAllByStream: GET "/api/v1/applications/stream?cursor=<base64>&limit=20"
@@ -123,31 +89,14 @@ public class ApplicationController {
             @ApiResponse(responseCode = "400", description = "Invalid cursor or limit too large")
     })
     @GetMapping("/stream")
-    public Mono<ResponseEntity<List<ApplicationDto>>> streamApplications(
+    public Mono<ApplicationPage> streamApplications(
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "20") int limit) {
-
         if (limit > MAX_PAGE_SIZE) {
-            return Mono.error(new BadRequestException(
-                    String.format("Limit cannot be greater than %d", MAX_PAGE_SIZE)));
+            return Mono.error(new BadRequestException(String.format("Limit cannot be greater than %d", MAX_PAGE_SIZE)));
         }
-
         log.debug("Streaming applications - cursor: {}, limit: {}", cursor, limit);
-
-        return applicationService.streamWithNextCursor(cursor, limit)
-                .map(page -> {
-                    HttpHeaders headers = new HttpHeaders();
-                    if (page.nextCursor() != null) {
-                        headers.add("X-Next-Cursor", page.nextCursor());
-                    }
-                    return ResponseEntity.ok()
-                            .headers(headers)
-                            .body(page.items());
-                })
-                .onErrorResume(e -> {
-                    log.error("Failed to stream applications: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.badRequest().build());
-                });
+        return applicationService.streamWithNextCursor(cursor, limit);
     }
 
     // Update(addTags): PUT "/api/v1/applications/{id}/tags?actorId={actorId}"
@@ -157,32 +106,19 @@ public class ApplicationController {
             @ApiResponse(responseCode = "400", description = "Invalid request"),
             @ApiResponse(responseCode = "403", description = "Insufficient permissions"),
             @ApiResponse(responseCode = "404", description = "Application not found"),
-            @ApiResponse(responseCode = "409", description = "Failed to process tags")
+            @ApiResponse(responseCode = "409", description = "Failed to process tags"),
+            @ApiResponse(responseCode = "503", description = "Tag service is unavailable now")
     })
     @PutMapping("/{id}/tags")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Mono<ResponseEntity<Void>> addTags(
+    public Mono<Void> addTags(
             @PathVariable UUID id,
             @RequestBody List<String> tags,
             @RequestParam("actorId") UUID actorId) {
 
         log.info("Adding tags to application {} by actor {}", id, actorId);
 
-        return applicationService.attachTags(id, tags, actorId)
-                .then(Mono.just(ResponseEntity.noContent().<Void>build()))
-                .onErrorResume(e -> {
-                    log.error("Failed to add tags to application {}: {}", id, e.getMessage());
-
-                    if (e instanceof com.example.applicationservice.exception.ForbiddenException) {
-                        return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN).build());
-                    } else if (e instanceof com.example.applicationservice.exception.NotFoundException) {
-                        return Mono.just(ResponseEntity.notFound().build());
-                    } else if (e instanceof com.example.applicationservice.exception.ConflictException) {
-                        return Mono.just(ResponseEntity.status(HttpStatus.CONFLICT).build());
-                    }
-
-                    return Mono.just(ResponseEntity.badRequest().build());
-                });
+        return applicationService.attachTags(id, tags, actorId);
     }
 
     // Delete(deleteTags): DELETE "/api/v1/applications/{id}/tags?actorId={actorId}"
@@ -191,30 +127,19 @@ public class ApplicationController {
             @ApiResponse(responseCode = "204", description = "Tags removed successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid request"),
             @ApiResponse(responseCode = "403", description = "Insufficient permissions"),
-            @ApiResponse(responseCode = "404", description = "Application not found")
+            @ApiResponse(responseCode = "404", description = "Application not found"),
+            @ApiResponse(responseCode = "503", description = "User or product service is unavailable now")
     })
     @DeleteMapping("/{id}/tags")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Mono<ResponseEntity<Void>> removeTags(
+    public Mono<Void> removeTags(
             @PathVariable UUID id,
             @RequestBody List<String> tags,
             @RequestParam("actorId") UUID actorId) {
 
         log.info("Removing tags from application {} by actor {}", id, actorId);
 
-        return applicationService.removeTags(id, tags, actorId)
-                .then(Mono.just(ResponseEntity.noContent().<Void>build()))
-                .onErrorResume(e -> {
-                    log.error("Failed to remove tags from application {}: {}", id, e.getMessage());
-
-                    if (e instanceof com.example.applicationservice.exception.ForbiddenException) {
-                        return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN).build());
-                    } else if (e instanceof com.example.applicationservice.exception.NotFoundException) {
-                        return Mono.just(ResponseEntity.notFound().build());
-                    }
-
-                    return Mono.just(ResponseEntity.badRequest().build());
-                });
+        return applicationService.removeTags(id, tags, actorId);
     }
 
     // Update(changeStatus): PUT "/api/v1/applications/{id}/status?actorId={actorId}"
@@ -224,31 +149,18 @@ public class ApplicationController {
             @ApiResponse(responseCode = "400", description = "Invalid status"),
             @ApiResponse(responseCode = "403", description = "Insufficient permissions"),
             @ApiResponse(responseCode = "404", description = "Application not found"),
-            @ApiResponse(responseCode = "409", description = "Conflict (e.g., manager changing own application)")
+            @ApiResponse(responseCode = "409", description = "Conflict (e.g., manager changing own application)"),
+            @ApiResponse(responseCode = "503", description = "User or product service is unavailable now")
     })
     @PutMapping("/{id}/status")
-    public Mono<ResponseEntity<ApplicationDto>> changeStatus(
+    public Mono<ApplicationDto> changeStatus(
             @PathVariable UUID id,
             @RequestBody String status,
             @RequestParam("actorId") UUID actorId) {
 
         log.info("Changing status of application {} to '{}' by actor {}", id, status, actorId);
 
-        return applicationService.changeStatus(id, status, actorId)
-                .map(ResponseEntity::ok)
-                .onErrorResume(e -> {
-                    log.error("Failed to change status of application {}: {}", id, e.getMessage());
-
-                    if (e instanceof com.example.applicationservice.exception.ForbiddenException) {
-                        return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN).build());
-                    } else if (e instanceof com.example.applicationservice.exception.NotFoundException) {
-                        return Mono.just(ResponseEntity.notFound().build());
-                    } else if (e instanceof com.example.applicationservice.exception.ConflictException) {
-                        return Mono.just(ResponseEntity.status(HttpStatus.CONFLICT).build());
-                    }
-
-                    return Mono.just(ResponseEntity.badRequest().build());
-                });
+        return applicationService.changeStatus(id, status, actorId);
     }
 
     // Delete: DELETE "/api/v1/applications/{id}?actorId={actorId}"
@@ -256,29 +168,18 @@ public class ApplicationController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Application deleted successfully"),
             @ApiResponse(responseCode = "403", description = "Insufficient permissions"),
-            @ApiResponse(responseCode = "404", description = "Application not found")
+            @ApiResponse(responseCode = "404", description = "Application not found"),
+            @ApiResponse(responseCode = "503", description = "User or product service is unavailable now")
     })
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Mono<ResponseEntity<Void>> deleteApplication(
+    public Mono<Void> deleteApplication(
             @PathVariable UUID id,
             @RequestParam("actorId") UUID actorId) {
 
         log.info("Deleting application {} by actor {}", id, actorId);
 
-        return applicationService.deleteApplication(id, actorId)
-                .then(Mono.just(ResponseEntity.noContent().<Void>build()))
-                .onErrorResume(e -> {
-                    log.error("Failed to delete application {}: {}", id, e.getMessage());
-
-                    if (e instanceof com.example.applicationservice.exception.ForbiddenException) {
-                        return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN).build());
-                    } else if (e instanceof com.example.applicationservice.exception.NotFoundException) {
-                        return Mono.just(ResponseEntity.notFound().build());
-                    }
-
-                    return Mono.just(ResponseEntity.internalServerError().build());
-                });
+        return applicationService.deleteApplication(id, actorId);
     }
 
     // ReadHistory: GET "/api/v1/applications/{id}/history?actorId={actorId}"
@@ -286,29 +187,17 @@ public class ApplicationController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Application history"),
             @ApiResponse(responseCode = "403", description = "Insufficient permissions"),
-            @ApiResponse(responseCode = "404", description = "Application not found")
+            @ApiResponse(responseCode = "404", description = "Application not found"),
+            @ApiResponse(responseCode = "503", description = "User or product service is unavailable now")
     })
     @GetMapping("/{id}/history")
-    public Mono<ResponseEntity<Flux<ApplicationHistoryDto>>> getApplicationHistory(
+    public Flux<ApplicationHistoryDto> getApplicationHistory(
             @PathVariable UUID id,
             @RequestParam("actorId") UUID actorId) {
 
         log.debug("Getting history for application {} by actor {}", id, actorId);
 
-        return applicationService.listHistory(id, actorId)
-                .collectList()
-                .map(history -> ResponseEntity.ok(Flux.fromIterable(history)))
-                .onErrorResume(e -> {
-                    log.error("Failed to get history for application {}: {}", id, e.getMessage());
-
-                    if (e instanceof com.example.applicationservice.exception.ForbiddenException) {
-                        return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN).build());
-                    } else if (e instanceof com.example.applicationservice.exception.NotFoundException) {
-                        return Mono.just(ResponseEntity.notFound().build());
-                    }
-
-                    return Mono.just(ResponseEntity.internalServerError().build());
-                });
+        return applicationService.listHistory(id, actorId);
     }
 
     // Internal endpoint для user-service
@@ -316,17 +205,12 @@ public class ApplicationController {
             description = "Delete all applications for a user (internal use only)")
     @DeleteMapping("/internal/by-user")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Mono<ResponseEntity<Void>> deleteApplicationsByUserId(
+    public Mono<Void> deleteApplicationsByUserId(
             @RequestParam("userId") UUID userId) {
 
         log.info("Deleting all applications for user {} (internal call)", userId);
 
-        return applicationService.deleteApplicationsByUserId(userId)
-                .then(Mono.just(ResponseEntity.noContent().<Void>build()))
-                .onErrorResume(e -> {
-                    log.error("Failed to delete applications for user {}: {}", userId, e.getMessage());
-                    return Mono.just(ResponseEntity.internalServerError().build());
-                });
+        return applicationService.deleteApplicationsByUserId(userId);
     }
 
     // Internal endpoint для user-service
@@ -334,17 +218,10 @@ public class ApplicationController {
             description = "Delete all applications for a product (internal use only)")
     @DeleteMapping("/internal/by-product")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Mono<ResponseEntity<Void>> deleteApplicationsByProductId(
+    public Mono<Void> deleteApplicationsByProductId(
             @RequestParam("productId") UUID productId) {
-
         log.info("Deleting all applications for product {} (internal call)", productId);
-
-        return applicationService.deleteApplicationsByProductId(productId)
-                .then(Mono.just(ResponseEntity.noContent().<Void>build()))
-                .onErrorResume(e -> {
-                    log.error("Failed to delete applications for product {}: {}", productId, e.getMessage());
-                    return Mono.just(ResponseEntity.internalServerError().build());
-                });
+        return applicationService.deleteApplicationsByProductId(productId);
     }
 
     // Internal endpoint для tag-service
@@ -354,20 +231,11 @@ public class ApplicationController {
             @ApiResponse(responseCode = "400", description = "Invalid tag name")
     })
     @GetMapping("/by-tag")
-    public Mono<ResponseEntity<List<ApplicationInfoDto>>> getApplicationsByTag(
+    public Mono<List<ApplicationInfoDto>> getApplicationsByTag(
             @RequestParam("tag") String tagName) {
 
         log.debug("Getting applications with tag: {}", tagName);
 
-        return applicationService.findApplicationsByTag(tagName)
-                .map(ResponseEntity::ok)
-                .onErrorResume(e -> {
-                    if (e instanceof BadRequestException) {
-                        log.error("Bad request for tag {}: {}", tagName, e.getMessage());
-                        return Mono.just(ResponseEntity.badRequest().build());
-                    }
-                    log.error("Internal error for tag {}: {}", tagName, e.getMessage());
-                    return Mono.just(ResponseEntity.internalServerError().build());
-                });
+        return applicationService.findApplicationsByTag(tagName);
     }
 }

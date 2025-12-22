@@ -14,7 +14,7 @@ public class ApplicationServiceClientFallbackFactory implements FallbackFactory<
         return new ApplicationServiceClient() {
             @Override
             public List<ApplicationInfoDto> getApplicationsByTag(String tagName) {
-                return Collections.emptyList();
+                return null;
             }
         };
     }

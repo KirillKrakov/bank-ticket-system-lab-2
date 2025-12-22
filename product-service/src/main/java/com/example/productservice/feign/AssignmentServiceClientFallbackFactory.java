@@ -11,8 +11,8 @@ public class AssignmentServiceClientFallbackFactory implements FallbackFactory<A
     public AssignmentServiceClient create(Throwable cause) {
         return new AssignmentServiceClient() {
             @Override
-            public boolean existsByUserAndProductAndRole(UUID userId, UUID productId, String role) {
-                return false;
+            public Boolean existsByUserAndProductAndRole(UUID userId, UUID productId, String role) {
+                return null;
             }
         };
     }

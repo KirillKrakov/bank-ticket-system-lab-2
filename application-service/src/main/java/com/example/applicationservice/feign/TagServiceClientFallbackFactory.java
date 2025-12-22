@@ -1,6 +1,7 @@
 package com.example.applicationservice.feign;
 
 import com.example.applicationservice.dto.TagDto;
+import com.example.applicationservice.exception.ServiceUnavailableException;
 import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +15,7 @@ public class TagServiceClientFallbackFactory implements FallbackFactory<TagServi
         return new TagServiceClient() {
             @Override
             public List<TagDto> createOrGetTagsBatch(List<String> tagNames) {
-                return Collections.emptyList();
+                throw new ServiceUnavailableException("Tag service is unavailable now");
             }
         };
     }

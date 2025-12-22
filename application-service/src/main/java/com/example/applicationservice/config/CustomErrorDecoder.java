@@ -1,5 +1,10 @@
 package com.example.applicationservice.config;
 
+import com.example.applicationservice.exception.ConflictException;
+import com.example.applicationservice.exception.ForbiddenException;
+import com.example.applicationservice.exception.NotFoundException;
+import com.example.applicationservice.exception.ServiceUnavailableException;
+import feign.FeignException;
 import feign.Response;
 import feign.codec.ErrorDecoder;
 import org.slf4j.Logger;
@@ -10,8 +15,13 @@ public class CustomErrorDecoder implements ErrorDecoder {
 
     @Override
     public Exception decode(String methodKey, Response response) {
-        logger.error("Feign client error: methodKey={}, status={}, reason={}",
-                methodKey, response.status(), response.reason());
-        return new RuntimeException("Feign client error: " + response.status());
+        // Обычные HTTP ошибки
+        return switch (response.status()) {
+            case 503 -> new ServiceUnavailableException("Service unavailable");
+            case 409 -> new ConflictException("Already in use");
+            case 404 -> new NotFoundException("Resource not found");
+            case 403 -> new ForbiddenException("Not enough rights");
+            default -> FeignException.errorStatus(methodKey, response);
+        };
     }
 }

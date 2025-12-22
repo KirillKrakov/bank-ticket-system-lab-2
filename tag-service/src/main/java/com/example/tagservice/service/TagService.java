@@ -3,6 +3,7 @@ package com.example.tagservice.service;
 import com.example.tagservice.dto.ApplicationInfoDto;
 import com.example.tagservice.dto.TagDto;
 import com.example.tagservice.exception.NotFoundException;
+import com.example.tagservice.exception.ServiceUnavailableException;
 import com.example.tagservice.feign.ApplicationServiceClient;
 import com.example.tagservice.model.entity.Tag;
 import com.example.tagservice.repository.TagRepository;
@@ -98,6 +99,9 @@ public class TagService {
 
     private TagDto toDto(Tag tag) {
         List<ApplicationInfoDto> applications = applicationServiceClient.getApplicationsByTag(tag.getName());
+        if (applications == null) {
+            throw new ServiceUnavailableException("Application service is unavailable now");
+        }
         TagDto dto = new TagDto();
         dto.setId(tag.getId());
         dto.setName(tag.getName());

@@ -95,7 +95,8 @@ public class ProductController {
             @ApiResponse(responseCode = "401", description = "Actor is unauthorized"),
             @ApiResponse(responseCode = "403", description = "Insufficient rights"),
             @ApiResponse(responseCode = "404", description = "Product or actor not found"),
-            @ApiResponse(responseCode = "409", description = "Product name already in use")
+            @ApiResponse(responseCode = "409", description = "Product name already in use"),
+            @ApiResponse(responseCode = "503", description = "User service is unavailable")
     })
     @PutMapping("/{id}")
     public ResponseEntity<ProductDto> updateProduct(
@@ -114,7 +115,8 @@ public class ProductController {
             @ApiResponse(responseCode = "401", description = "Actor is unauthorized"),
             @ApiResponse(responseCode = "403", description = "Insufficient rights"),
             @ApiResponse(responseCode = "404", description = "Product or actor not found"),
-            @ApiResponse(responseCode = "409", description = "Error during deletion")
+            @ApiResponse(responseCode = "409", description = "Error during deletion"),
+            @ApiResponse(responseCode = "503", description = "User or application service is unavailable")
     })
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(

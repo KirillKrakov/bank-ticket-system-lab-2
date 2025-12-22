@@ -1,5 +1,6 @@
 package com.example.assignmentservice.feign;
 
+import com.example.assignmentservice.exception.ServiceUnavailableException;
 import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
 
@@ -12,7 +13,7 @@ public class ProductServiceClientFallbackFactory implements FallbackFactory<Prod
         return new ProductServiceClient() {
             @Override
             public Boolean productExists(UUID productId) {
-                return false;
+                throw new ServiceUnavailableException("Product service is unavailable now");
             }
         };
     }

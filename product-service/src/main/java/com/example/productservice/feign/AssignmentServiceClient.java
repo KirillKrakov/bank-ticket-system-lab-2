@@ -13,7 +13,7 @@ import java.util.UUID;
 public interface AssignmentServiceClient {
 
     @GetMapping("/api/v1/assignments/exists")
-    boolean existsByUserAndProductAndRole(
+    Boolean existsByUserAndProductAndRole(
             @RequestParam("userId") UUID userId,
             @RequestParam("productId") UUID productId,
             @RequestParam("role") String role
